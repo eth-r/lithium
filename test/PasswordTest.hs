@@ -58,3 +58,11 @@ passwordSpec = parallel $ do
 
       protected <- protectWith moderatePolicy mypassword mysecret
       openWith mypassword protected `shouldBe` Just mysecret
+
+    it "rejects invalid passwords" $ do
+      let mysecret = Conceal "you will never see this again" :: Secret ByteString
+      let mypassword = Password "foo"
+      let falseGuess = Password "bar"
+
+      protected <- protectWith interactivePolicy mypassword mysecret
+      openWith falseGuess protected `shouldBe` Nothing
