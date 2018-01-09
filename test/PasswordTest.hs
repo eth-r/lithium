@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 module PasswordTest (passwordSpec) where
 
@@ -28,15 +29,14 @@ passwordSpec :: Spec
 passwordSpec = parallel $ do
   describe "password" $ do
 
-    it "fucks off" $ do
-      True `shouldNotBe` False
-    --   let mysecret = "very sensitive material!" :: ScrubbedBytes
-    --   let Just mysecretN = asSecretN b24 mysecret
-    --   let mypassword = Password "password"
+    it "protects secrets" $ do
+      let mysecret = "very sensitive material!" :: ScrubbedBytes
+      let mysecretN = conceal $ coerceToN mysecret
+      let mypassword = Password "password"
 
-    --   protected <- protectWithN sensitivePolicy mypassword mysecretN
+      protected <- protectWithN sensitivePolicy mypassword (mysecretN :: SecretN 24)
 
-    --   openWithN mypassword protected `shouldBe` Just mysecretN
+      openWithN mypassword protected `shouldBe` Just mysecretN
 
     -- it "works again" $ do
     --   let mysecret = Conceal "this should be kept secret too"
