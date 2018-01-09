@@ -175,16 +175,16 @@ newKeypair = withLithium $ do
       pk' = P pk
   return $ KP (sk', pk')
 
-seedKeypair :: Seed -> IO Keypair
-seedKeypair (Seed s) = withLithium $ do
-  ((_e, sk), pk) <-
-    allocRetN $ \ppk ->
-    allocSecretN $ \psk ->
-    withSecret s $ \ps ->
-    sodium_box_seed_keypair ppk psk ps
-  let sk' = S sk
+seedKeypair :: Seed -> Keypair
+seedKeypair (Seed s) = withLithium $
+  let ((_e, sk), pk) = unsafePerformIO $
+        allocRetN $ \ppk ->
+        allocSecretN $ \psk ->
+        withSecret s $ \ps ->
+        sodium_box_seed_keypair ppk psk ps
+      sk' = S sk
       pk' = P pk
-  return $ KP (sk', pk')
+  in KP (sk', pk')
 
 newNonce :: IO Nonce
 newNonce = withLithium $ Nonce <$> randomBytesN
