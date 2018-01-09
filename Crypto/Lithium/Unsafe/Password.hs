@@ -7,6 +7,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DefaultSignatures #-}
 {-# OPTIONS_HADDOCK hide, show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Unsafe.Password
@@ -102,6 +103,7 @@ import Control.DeepSeq
 
 import Data.Maybe (fromJust)
 import Data.ByteArray as B
+import Data.ByteString as BS
 
 data ProtectedN (length :: Nat) typeOf =
   ProtectedN { getCiphertextN :: BytesN length
@@ -149,7 +151,18 @@ instance PasswordProtectableN t l => PasswordProtectableN (Secret t) l where
 
 class PasswordProtectable s where
   protectWith :: Policy -> Password -> s -> IO (Protected s)
+  default protectWith :: Plaintext s => Policy -> Password -> s -> IO (Protected s)
+  protectWith policy password plaintext = do
+    protected <- passwordProtect policy password
+      (fromPlaintext plaintext :: ScrubbedBytes)
+    return $ pfmap (fromJust . toPlaintext) protected
+
   openWith :: Password -> Protected s -> Maybe s
+  default openWith :: Plaintext s => Password -> Protected s -> Maybe s
+  openWith password protected = do
+    let plain = pfmap fromPlaintext protected
+    opened <- passwordOpen password plain
+    toPlaintext (opened :: ScrubbedBytes)
 
 instance PasswordProtectable s => PasswordProtectable (Secret s) where
   protectWith policy password (Conceal secret) = do
@@ -160,16 +173,9 @@ instance PasswordProtectable s => PasswordProtectable (Secret s) where
     opened <- openWith password plain
     return $ Conceal opened
 
-instance Plaintext p => PasswordProtectable p where
-  protectWith policy password plaintext = do
-    protected <- passwordProtect policy password
-      (fromPlaintext plaintext :: ScrubbedBytes)
-    return $ pfmap (fromJust . toPlaintext) protected
-  openWith password protected = do
-    let plain = pfmap fromPlaintext protected
-    opened <- passwordOpen password plain
-    toPlaintext (opened :: ScrubbedBytes)
-
+instance PasswordProtectable Bytes
+instance PasswordProtectable ScrubbedBytes
+instance PasswordProtectable ByteString
 
 class DeriveableN b where
   deriveN :: Password -> Salt -> Policy -> b
@@ -196,10 +202,10 @@ opslimit x
   | otherwise = Opslimit x
 
 opslimitInteractive :: Opslimit
-opslimitInteractive = Opslimit (fromIntegral sodium_pwhash_memlimit_interactive)
+opslimitInteractive = Opslimit (fromIntegral sodium_pwhash_opslimit_interactive)
 
 opslimitModerate :: Opslimit
-opslimitModerate = Opslimit (fromIntegral sodium_pwhash_memlimit_moderate)
+opslimitModerate = Opslimit (fromIntegral sodium_pwhash_opslimit_moderate)
 
 opslimitSensitive :: Opslimit
 opslimitSensitive = Opslimit (fromIntegral sodium_pwhash_opslimit_sensitive)
