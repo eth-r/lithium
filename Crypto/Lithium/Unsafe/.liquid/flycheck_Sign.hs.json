@@ -1,0 +1,1 @@
+{"status":"error","types":{},"errors":[{"start":{"line":6,"column":14},"stop":{"line":6,"column":21},"message":"Error: GHC Error\n    \n        Unsupported extension: DeriveA"}]}

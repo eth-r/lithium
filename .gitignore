@@ -18,3 +18,8 @@ cabal.sandbox.config
 .stack-work/
 cabal.project.local
 .HTF/
+result
+*.cabal
+.floo
+.flooignore
+.ghci

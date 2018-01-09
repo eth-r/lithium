@@ -1,0 +1,91 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DataKinds #-}
+module HashTest (hashSpec) where
+
+import Test.Hspec.QuickCheck
+import Test.Tasty.Hspec
+import Test.QuickCheck.Arbitrary
+import Test.QuickCheck.Property
+
+import Crypto.Lithium.Hash
+import Crypto.Lithium.Unsafe.Hash hiding (genericHash)
+import Crypto.Lithium.Unsafe.Types
+
+
+import Data.ByteArray (Bytes)
+import qualified Data.ByteArray as B
+import Data.ByteString.Base16
+import Data.ByteString
+import Data.Maybe (fromJust)
+
+-- newtype Key = Key (GenericHashKey 64) deriving (Eq, Show)
+
+-- instance Arbitrary Key where
+--   arbitrary = Key . asGenericHashKey . fromJust . asSecretN b64 . B.pack <$> vector 64
+
+-- newtype Message = Message Bytes deriving (Eq)
+
+-- instance Show Message where
+--   show (Message m) = show $ encode $ B.convert m
+
+-- instance Arbitrary Message where
+--   arbitrary = Message . B.pack <$> arbitrary
+hashSpec :: Spec
+hashSpec = parallel $ do
+  describe "keyedHash" $ do
+    it "is trivial" $ True `shouldBe` True
+{-
+    it "matches empty test vector" $ do
+      testHash0 `shouldBe` (fromNonSecretN $ fromDigest $ keyedHash testKey testIn0)
+
+    it "matches test vector 1" $ do
+      testHash1 `shouldBe` (fromNonSecretN $ fromDigest $ keyedHash testKey testIn1)
+
+    it "matches test vector 2" $ do
+      testHash2 `shouldBe` (fromNonSecretN $ fromDigest $ keyedHash testKey testIn2)
+
+    it "matches test vector 3" $ do
+      testHash3 `shouldBe` (fromNonSecretN $ fromDigest $ keyedHash testKey testIn3)
+
+    it "matches test vector 4" $ do
+      testHash4 `shouldBe` (fromNonSecretN $ fromDigest $ keyedHash testKey testIn4)
+
+    prop "different inputs give different hashes" $
+      \(Message m) (Message n) (Key k) -> m /= n ==>
+      keyedHash k m `shouldNotBe` keyedHash k n
+
+    prop "different keys give different hashes" $
+      \(Message m) (Key ka) (Key kb) -> ka /= kb ==>
+      keyedHash ka m `shouldNotBe` keyedHash kb m
+
+  describe "genericHash" $ do
+
+    prop "different inputs give different hashes" $
+      \(Message m) (Message n) -> m /= n ==>
+      genericHash m `shouldNotBe` genericHash n
+
+
+from16 :: ByteString -> Bytes
+from16 = B.convert . fst . decode
+
+testKey :: GenericHashKey 64
+testKey = asGenericHashKey . fromJust . asSecretN b64 . B.convert $ from16 "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
+
+testIn0, testIn1, testIn2, testIn3, testIn4 :: Bytes
+testHash0, testHash1, testHash2, testHash3, testHash4 :: Bytes
+
+testIn0 = from16 ""
+testHash0 = from16 "10ebb67700b1868efb4417987acf4690ae9d972fb7a590c2f02871799aaa4786b5e996e8f0f4eb981fc214b005f42d2ff4233499391653df7aefcbc13fc51568"
+
+testIn1 = from16 "000102030405060708090a0b0c0d0e0f"
+testHash1 = from16 "a0c65bddde8adef57282b04b11e7bc8aab105b99231b750c021f4a735cb1bcfab87553bba3abb0c3e64a0b6955285185a0bd35fb8cfde557329bebb1f629ee93"
+
+testIn2 = from16 "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+testHash2 = from16 "86221f3ada52037b72224f105d7999231c5e5534d03da9d9c0a12acb68460cd375daf8e24386286f9668f72326dbf99ba094392437d398e95bb8161d717f8991"
+
+testIn3 = from16 "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f"
+testHash3 = from16 "41daa6adcfdb69f1440c37b596440165c15ada596813e2e22f060fcd551f24dee8e04ba6890387886ceec4a7a0d7fc6b44506392ec3822c0d8c1acfc7d5aebe8"
+
+testIn4 = from16 "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfe"
+testHash4 = from16 "142709d62e28fcccd0af97fad0f8465b971e82201dc51070faa0372aa43e92484be1c1e73ba10906d5d1853db6a4106e0a7bf9800d373d6dee2d46d62ef2a461"
+-}
