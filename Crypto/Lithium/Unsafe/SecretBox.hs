@@ -1,6 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -152,7 +153,7 @@ secretBoxN :: forall l.
               ( KnownNats l (l + MacBytes) )
            => Key -> Nonce -> SecretN l -> BytesN (l + MacBytes)
 secretBoxN (Key key) (Nonce nonce) secret = withLithium $
-  let len = ByteSize :: ByteSize l
+  let len = ByteSize @l
       -- clen = ByteSize :: ByteSize (l + MacBytes)
       (_e, ciphertext) = unsafePerformIO $
         allocRetN $ \pc ->
@@ -167,7 +168,7 @@ openSecretBoxN :: forall l.
                => Key -> Nonce -> BytesN (l + MacBytes) -> Maybe (SecretN l)
 openSecretBoxN (Key k) (Nonce n) ciphertext = withLithium $
   let -- len = ByteSize :: ByteSize l
-      clen = ByteSize :: ByteSize (l + MacBytes)
+      clen = ByteSize @(l + MacBytes)
       (e, message) = unsafePerformIO $
         allocSecretN $ \pm ->
         withSecret k $ \pk ->
@@ -208,7 +209,7 @@ openSecretBoxDetached (Key key) (Nonce nonce) (Mac mac) ciphertext = withLithium
 secretBoxDetachedN :: forall l b. (KnownNat l, ByteArray b)
                    => Key -> Nonce -> SecretN l -> (N l b, Mac)
 secretBoxDetachedN (Key key) (Nonce nonce) message = withLithium $
-  let len = ByteSize :: ByteSize l
+  let len = ByteSize @l
       ((_e, mac), ciphertext) = unsafePerformIO $
         allocRetN $ \pc ->
         allocRetN $ \pmac ->
@@ -221,7 +222,7 @@ secretBoxDetachedN (Key key) (Nonce nonce) message = withLithium $
 openSecretBoxDetachedN :: forall l b. (KnownNat l, ByteArray b)
                        => Key -> Nonce -> Mac -> N l b -> Maybe (SecretN l)
 openSecretBoxDetachedN (Key key) (Nonce nonce) (Mac mac) ciphertext = withLithium $
-  let len = ByteSize :: ByteSize l
+  let len = ByteSize @l
       (e, message) = unsafePerformIO $
         allocSecretN $ \pm ->
         withSecret key $ \pk ->
