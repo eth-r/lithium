@@ -1,0 +1,119 @@
+-- This file has been generated from package.yaml by hpack version 0.20.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 7d3f36648585334c743e4748b226a99cb191f2434bdc9d9bc68cb3b9f6ebbce1
+
+name:           lithium
+version:        0.0.0
+synopsis:       Cryptography that's slightly less likely to blow up on you
+description:    Lithium is a Libsodium wrapper aiming to remove all unnecessary and dangerous choices
+category:       Crypto
+homepage:       https://github.com/eth-r/lithium#readme
+bug-reports:    https://github.com/eth-r/lithium/issues
+author:         Promethea Raschke
+maintainer:     Promethea Raschke
+license:        PublicDomain
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
+
+extra-source-files:
+    CHANGELOG.md
+    LICENSE
+    package.yaml
+    README.md
+    stack.yaml
+
+source-repository head
+  type: git
+  location: https://github.com/eth-r/lithium
+
+library
+  default-extensions: NoImplicitPrelude OverloadedStrings
+  ghc-options: -Wall -Werror
+  extra-libraries:
+      sodium
+  build-depends:
+      base
+    , basement
+    , bytestring
+    , deepseq
+    , foundation
+    , memory
+  exposed-modules:
+      Crypto.Lithium.Box
+      Crypto.Lithium.Hash
+      Crypto.Lithium.Password
+      Crypto.Lithium.Random
+      Crypto.Lithium.SecretBox
+      Crypto.Lithium.Sign
+      Crypto.Lithium.Types
+      Crypto.Lithium.Unsafe.Box
+      Crypto.Lithium.Unsafe.Hash
+      Crypto.Lithium.Unsafe.Password
+      Crypto.Lithium.Unsafe.SecretBox
+      Crypto.Lithium.Unsafe.Sign
+      Crypto.Lithium.Unsafe.Types
+  other-modules:
+      Crypto.Lithium.Internal.Box
+      Crypto.Lithium.Internal.Hash
+      Crypto.Lithium.Internal.Init
+      Crypto.Lithium.Internal.Password
+      Crypto.Lithium.Internal.Random
+      Crypto.Lithium.Internal.SecretBox
+      Crypto.Lithium.Internal.Sign
+      Crypto.Lithium.Internal.Util
+      Crypto.Lithium.Util.Init
+      Crypto.Lithium.Util.Nat
+      Crypto.Lithium.Util.Phantom
+      Crypto.Lithium.Util.Random
+      Crypto.Lithium.Util.Secret
+      Crypto.Lithium.Util.Sized
+  default-language: Haskell2010
+
+test-suite lithium-tests
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs:
+      test
+  ghc-options: -rtsopts -threaded -with-rtsopts=-N
+  extra-libraries:
+      sodium
+  build-depends:
+      QuickCheck
+    , base
+    , base16-bytestring
+    , bytestring
+    , hspec
+    , lithium
+    , memory
+    , tasty
+    , tasty-hspec
+  other-modules:
+      BoxTest
+      HashTest
+      NatTest
+      PasswordTest
+      SecretBoxTest
+  default-language: Haskell2010
+
+benchmark lithium-benchmarks
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs:
+      bench
+  ghc-options: -rtsopts -threaded -with-rtsopts=-N -O2
+  extra-libraries:
+      sodium
+  build-depends:
+      base
+    , criterion
+    , deepseq
+    , lithium
+    , memory
+  other-modules:
+      BoxBench
+      HashBench
+      RandomBench
+  default-language: Haskell2010
