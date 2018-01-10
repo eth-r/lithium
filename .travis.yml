@@ -1,3 +1,3 @@
 language: nix
 script:
-  - travis_wait nix-build
+  - nix-build
