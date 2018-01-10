@@ -25,7 +25,7 @@ main = do
   Test.Tasty.defaultMain test
 
 spec :: Spec
-spec = parallel $ modifyMaxSuccess (const 10000) $ do
+spec = parallel $ modifyMaxSuccess (const 1000) $ do
   describe "Aead" aeadSpec
   describe "Box" boxSpec
   -- describe "Hash" hashSpec
