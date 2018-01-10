@@ -45,6 +45,7 @@ import Crypto.Lithium.Internal.Box
 import Crypto.Lithium.Internal.Util
 
 import Data.ByteArray as B
+import Data.ByteString as BS
 
 import Foundation hiding (splitAt)
 import Control.DeepSeq
@@ -65,8 +66,8 @@ transparent encryption of any serializable values.
 
 In all relevant respects, 'box' should Just Encrypt.
 -}
-box :: forall p b. (Plaintext p, ByteArray b)
-    => PublicKey -> SecretKey -> p -> IO (Box p b)
+box :: forall p. (Plaintext p)
+    => PublicKey -> SecretKey -> p -> IO (Box p)
 box pk sk message =
   withLithium $ do -- Ensure Sodium is initialized
 
@@ -108,8 +109,8 @@ With the 'IsPlaintext' typeclass, 'openBox' will automatically convert the
 decrypted byte array to your desired type, including non-trivial transformations
 such as compression if so defined in the instance declaration.
 -}
-openBox :: forall p b. (Plaintext p, ByteArray b)
-        => PublicKey -> SecretKey -> Box p b -> Maybe p
+openBox :: forall p. (Plaintext p)
+        => PublicKey -> SecretKey -> Box p -> Maybe p
 openBox pk sk (Box ciphertext) =
   withLithium $ -- Ensure Sodium is initialized
 
@@ -138,8 +139,8 @@ openBox pk sk (Box ciphertext) =
     0 -> toPlaintext (message :: ScrubbedBytes)
     _ -> Nothing
 
-newtype Box t b = Box
-  { getCiphertext :: b } deriving (Eq, Show, NFData)
+newtype Box t = Box
+  { getCiphertext :: ByteString } deriving (Eq, Show, NFData)
 
 {-|
 Size of the tag prepended to the ciphertext; the amount by which a 'box'

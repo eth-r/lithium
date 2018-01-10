@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -34,6 +35,10 @@ module Crypto.Lithium.Unsafe.Aead
   , aead
   , openAead
 
+  , aeadPrefix
+  , openAeadPrefix
+  , aeadRandom
+
   , aeadDetached
   , openAeadDetached
 
@@ -58,6 +63,9 @@ module Crypto.Lithium.Unsafe.Aead
 
 import Crypto.Lithium.Internal.Aead
 import Crypto.Lithium.Internal.Util
+import Crypto.Lithium.Unsafe.Types
+
+import Data.ByteArray as B
 
 import Control.DeepSeq
 import Foundation hiding (splitAt)
@@ -86,87 +94,155 @@ asMac = Mac
 fromMac :: Mac -> BytesN MacBytes
 fromMac (Mac m) = m
 
-newtype AeadBox m t = AeadBox { unAeadBox :: t } deriving (Show, Eq, NFData)
-
+{-|
+Generate a new 'aead' key
+-}
 newKey :: IO Key
-newKey = do
+newKey = withLithium $ do
   (_e, k) <-
-    allocSecretN keyBytes $ \pk ->
-    sodium_aead_keygen pk
+    allocSecretN $ \pk ->
+    aead_keygen pk
   return $ Key k
 
 newNonce :: IO Nonce
-newNonce = Nonce <$> randomBytesN nonceBytes
+newNonce = Nonce <$> randomBytesN
+
 
 aead :: (ByteOps m a c)
      => Key -> Nonce -> m -> a -> c
 aead (Key key) (Nonce nonce) message aad =
-  let (_e, ciphertext) = unsafePerformIO $
-        allocRet (bLength message + macSize) $ \pc ->
-        withSecretN key $ \pk ->
-        withBytesN nonce $ \pn ->
+  withLithium $
+
+  let mlen = B.length message
+      -- ^ Length of message
+      clen = mlen + macSize
+      -- ^ Length of ciphertext with mac
+      alen = B.length aad
+      -- ^ Length of associated data
+
+      (_e, ciphertext) = unsafePerformIO $
+        allocRet clen $ \pc ->
+        withSecret key $ \pk ->
+        withByteArray nonce $ \pn ->
         withByteArray message $ \pm ->
         withByteArray aad $ \pa ->
-        sodium_aead_encrypt pc nullPtr
-                            pm (fromIntegral $ bLength message)
-                            pa (fromIntegral $ bLength aad)
-                            nullPtr pn pk
+        aead_encrypt pc
+                     pm mlen
+                     pa alen
+                     pn pk
   in ciphertext
 
 openAead :: (ByteOps c a m)
          => Key -> Nonce -> c -> a -> Maybe m
 openAead (Key k) (Nonce n) ciphertext aad =
+  withLithium $ -- Ensure Sodium is initialized
+
   let (e, message) = unsafePerformIO $
-        allocRet (bLength ciphertext - macSize) $ \pm ->
-        withSecretN k $ \pk ->
-        withBytesN n $ \pn ->
+        allocRet (B.length ciphertext - macSize) $ \pm ->
+        withSecret k $ \pk ->
+        withByteArray n $ \pn ->
         withByteArray ciphertext $ \pc ->
         withByteArray aad $ \pa ->
-        sodium_aead_decrypt pm nullPtr nullPtr
-                            pc (fromIntegral $ bLength ciphertext)
-                            pa (fromIntegral $ bLength aad)
-                            pn pk
+        aead_decrypt pm
+                     pc (fromIntegral $ B.length ciphertext)
+                     pa (fromIntegral $ B.length aad)
+                     pn pk
   in case e of
     0 -> Just message
     _ -> Nothing
 
 
+aeadPrefix :: (ByteOps m a c)
+           => Key -> Nonce -> m -> a -> c
+aeadPrefix key nonce message aad =
+  withLithium $ -- Ensure Sodium is initialized
+  let nonceBs = B.convert $ fromNonce nonce
+      ciphertext = aead key nonce message aad
+  in B.append nonceBs ciphertext
+
+
+openAeadPrefix :: (ByteOps ciphertext aad message)
+               => Key -> ciphertext -> aad -> Maybe message
+openAeadPrefix (Key key) ciphertext aad =
+  withLithium $ -- Ensure Sodium is initialized
+
+  let clen = B.length ciphertext - nonceSize
+      -- ^ Length of Aead ciphertext:
+      --   ciphertext - nonce
+      mlen = clen - macSize
+      -- ^ Length of original plaintext:
+      --   ciphertext - (nonce + mac)
+      alen = B.length aad
+      -- ^ Length of associated data
+
+      (e, message) = unsafePerformIO $
+        allocRet mlen $ \pmessage ->
+        withSecret key $ \pkey ->
+        withByteArray ciphertext $ \pc ->
+        withByteArray aad $ \padata ->
+        do
+          let pnonce = pc
+              -- ^ Nonce begins at byte 0
+              pctext = plusPtr pc nonceSize
+              -- ^ Mac and encrypted message after nonce
+          aead_decrypt pmessage
+                       pctext clen
+                       padata alen
+                       pnonce pkey
+  in case e of
+    0 -> Just message
+    _ -> Nothing
+
+
+aeadRandom :: (ByteOps m a c)
+           => Key -> m -> a -> IO c
+aeadRandom key message aad = do
+  nonce <- newNonce
+  return $ aeadPrefix key nonce message aad
+
+
 aeadN :: forall l a.
-              ( KnownNats l (l + MacBytes)
-              , ByteArrayAccess a)
-           => Key -> Nonce -> SecretN l -> a -> BytesN (l + MacBytes)
+         ( KnownNats l (l + MacBytes)
+         , ByteArrayAccess a)
+      => Key -> Nonce -> SecretN l -> a -> BytesN (l + MacBytes)
 aeadN (Key key) (Nonce nonce) secret aad =
-  let len = ByteSize :: ByteSize l
-      clen = ByteSize :: ByteSize (l + MacBytes)
+  withLithium $
+
+  let mlen = asNum (ByteSize @l)
+      alen = B.length aad
+
       (_e, ciphertext) = unsafePerformIO $
-        allocBytesN clen $ \pc ->
-        withSecretN key $ \pk ->
-        withBytesN nonce $ \pn ->
-        withSecretN secret $ \pm ->
+        allocRetN $ \pc ->
+        withSecret key $ \pk ->
+        withByteArray nonce $ \pn ->
+        withSecret secret $ \pm ->
         withByteArray aad $ \pa ->
-        sodium_aead_encrypt pc nullPtr
-                            pm (asNum len)
-                            pa (fromIntegral $ bLength aad)
-                            nullPtr pn pk
+        aead_encrypt pc
+                     pm mlen
+                     pa alen
+                     pn pk
   in ciphertext
 
 openAeadN :: forall l a.
-                  ( KnownNats l (l + MacBytes)
-                  , ByteArrayAccess a)
-               => Key -> Nonce -> BytesN (l + MacBytes) -> a -> Maybe (SecretN l)
+             ( KnownNats l (l + MacBytes)
+             , ByteArrayAccess a)
+          => Key -> Nonce -> BytesN (l + MacBytes) -> a -> Maybe (SecretN l)
 openAeadN (Key k) (Nonce n) ciphertext aad =
-  let len = ByteSize :: ByteSize l
-      clen = ByteSize :: ByteSize (l + MacBytes)
+  withLithium $
+
+  let mlen = asNum (ByteSize @l)
+      clen = mlen + macSize
+      alen = B.length aad
       (e, message) = unsafePerformIO $
-        allocSecretN len $ \pm ->
-        withSecretN k $ \pk ->
-        withBytesN n $ \pn ->
-        withBytesN ciphertext $ \pc ->
+        allocSecretN $ \pm ->
+        withSecret k $ \pk ->
+        withByteArray n $ \pn ->
+        withByteArray ciphertext $ \pc ->
         withByteArray aad $ \pa ->
-        sodium_aead_decrypt pm nullPtr nullPtr
-                            pc (asNum clen)
-                            pa (fromIntegral $ bLength aad)
-                            pn pk
+        aead_decrypt pm
+                     pc clen
+                     pa alen
+                     pn pk
   in case e of
     0 -> Just message
     _ -> Nothing
@@ -175,33 +251,43 @@ openAeadN (Key k) (Nonce n) ciphertext aad =
 aeadDetached :: (ByteOps m a c)
              => Key -> Nonce -> m -> a -> (c, Mac)
 aeadDetached (Key key) (Nonce nonce) message aad =
-  let ((_e, mac), ciphertext) = unsafePerformIO $
-        allocRet (bLength message) $ \pc ->
-        allocBytesN macBytes $ \pmac ->
-        withSecretN key $ \pk ->
-        withBytesN nonce $ \pn ->
+  withLithium $
+
+  let mlen = B.length message
+      alen = B.length aad
+
+      ((_e, mac), ciphertext) = unsafePerformIO $
+        allocRet (B.length message) $ \pc ->
+        allocRetN $ \pmac ->
+        withSecret key $ \pk ->
+        withByteArray nonce $ \pn ->
         withByteArray message $ \pm ->
         withByteArray aad $ \pa ->
-        sodium_aead_detached pc pmac nullPtr
-                             pm (fromIntegral $ bLength message)
-                             pa (fromIntegral $ bLength aad)
-                             nullPtr pn pk
+        aead_detached pc pmac
+                      pm mlen
+                      pa alen
+                      pn pk
   in (ciphertext, Mac mac)
 
 openAeadDetached :: (ByteOps c a m)
                  => Key -> Nonce -> Mac -> c -> a -> Maybe m
 openAeadDetached (Key key) (Nonce nonce) (Mac mac) ciphertext aad =
-  let (e, message) = unsafePerformIO $
-        allocRet (bLength ciphertext) $ \pm ->
-        withSecretN key $ \pk ->
-        withBytesN nonce $ \pn ->
-        withBytesN mac $ \pmac ->
+  withLithium $
+
+  let clen = B.length ciphertext
+      alen = B.length aad
+
+      (e, message) = unsafePerformIO $
+        allocRet clen $ \pm ->
+        withSecret key $ \pk ->
+        withByteArray nonce $ \pn ->
+        withByteArray mac $ \pmac ->
         withByteArray ciphertext $ \pc ->
         withByteArray aad $ \pa ->
-        sodium_aead_open_detached pm nullPtr
-                                  pc (fromIntegral $ bLength ciphertext)
-                                  pmac pa (fromIntegral $ bLength aad)
-                                  pn pk
+        aead_open_detached pm
+                           pc clen
+                           pmac pa alen
+                           pn pk
   in case e of
     0 -> Just message
     _ -> Nothing
@@ -209,35 +295,43 @@ openAeadDetached (Key key) (Nonce nonce) (Mac mac) ciphertext aad =
 aeadDetachedN :: forall l a. (KnownNat l, ByteArrayAccess a)
               => Key -> Nonce -> SecretN l -> a -> (BytesN l, Mac)
 aeadDetachedN (Key key) (Nonce nonce) message aad =
-  let len = ByteSize :: ByteSize l
+  withLithium $
+
+  let mlen = asNum (ByteSize @l)
+      alen = B.length aad
+
       ((_e, mac), ciphertext) = unsafePerformIO $
-        allocBytesN len $ \pc ->
-        allocBytesN macBytes $ \pmac ->
-        withSecretN key $ \pk ->
-        withBytesN nonce $ \pn ->
-        withSecretN message $ \pm ->
+        allocRetN $ \pc ->
+        allocRetN $ \pmac ->
+        withSecret key $ \pk ->
+        withByteArray nonce $ \pn ->
+        withSecret message $ \pm ->
         withByteArray aad $ \pa ->
-        sodium_aead_detached pc pmac nullPtr
-                             pm (asNum len)
-                             pa (fromIntegral $ bLength aad)
-                             nullPtr pn pk
+        aead_detached pc pmac
+                      pm mlen
+                      pa alen
+                      pn pk
   in (ciphertext, Mac mac)
 
 openAeadDetachedN :: forall l a. (KnownNat l, ByteArrayAccess a)
                   => Key -> Nonce -> Mac -> BytesN l -> a -> Maybe (SecretN l)
 openAeadDetachedN (Key key) (Nonce nonce) (Mac mac) ciphertext aad =
-  let len = ByteSize :: ByteSize l
+  withLithium $
+
+  let clen = asNum (ByteSize @l)
+      alen = B.length aad
+
       (e, message) = unsafePerformIO $
-        allocSecretN len $ \pm ->
-        withSecretN key $ \pk ->
-        withBytesN nonce $ \pn ->
-        withBytesN mac $ \pmac ->
-        withBytesN ciphertext $ \pc ->
+        allocSecretN $ \pm ->
+        withSecret key $ \pk ->
+        withByteArray nonce $ \pn ->
+        withByteArray mac $ \pmac ->
+        withByteArray ciphertext $ \pc ->
         withByteArray aad $ \pa ->
-        sodium_aead_open_detached pm nullPtr
-                                  pc (asNum len)
-                                  pmac pa (fromIntegral $ bLength aad)
-                                  pn pk
+        aead_open_detached pm
+                           pc clen
+                           pmac pa alen
+                           pn pk
   in case e of
     0 -> Just message
     _ -> Nothing
@@ -247,18 +341,18 @@ keyBytes :: ByteSize KeyBytes
 keyBytes = ByteSize
 
 keySize :: Int
-keySize = fromInteger $ fromIntegral sodium_aead_keybytes
+keySize = fromInteger $ fromIntegral aead_keybytes
 
 type MacBytes = 16
 macBytes :: ByteSize MacBytes
 macBytes = ByteSize
 
 macSize :: Int
-macSize = fromInteger $ fromIntegral sodium_aead_macbytes
+macSize = fromInteger $ fromIntegral aead_macbytes
 
 type NonceBytes = 24
 nonceBytes :: ByteSize NonceBytes
 nonceBytes = ByteSize
 
 nonceSize :: Int
-nonceSize = fromInteger $ fromIntegral sodium_aead_noncebytes
+nonceSize = fromInteger $ fromIntegral aead_noncebytes

@@ -32,12 +32,10 @@ module Crypto.Lithium.SecretBox
 
 import Crypto.Lithium.Unsafe.SecretBox (Key)
 import qualified Crypto.Lithium.Unsafe.SecretBox as U
-import Crypto.Lithium.Internal.SecretBox
 import Crypto.Lithium.Internal.Util
-import Crypto.Lithium.Internal.Random
 import Foundation
 import Control.DeepSeq
-import Data.ByteArray as B
+import Data.ByteString as BS
 
 {-|
 Encrypt the plaintext into a 'SecretBox' which also verifies the authenticity of
@@ -48,69 +46,24 @@ does not provide a 'secretBox' interface using user-supplied nonces outside the
 "Crypto.Lithium.Unsafe" API. If your protocol requires nonces for eg. replay
 protection, you should use "Crypto.Lithium.Aead" instead.
 -}
-secretBox :: (Plaintext message, ByteArray bytes)
-          => Key -> message -> IO (SecretBox message bytes)
-secretBox key message =
-  withLithium $ do -- Ensure Sodium is initialized
-
-  let mlen = plaintextLength message
-      -- ^ Length of message
-      clen = mlen + tagSize
-      -- ^ Length of combined ciphertext to allocate:
-      --   message + (nonce + mac)
-      mlenC = fromIntegral mlen
-      -- ^ Length of message in C type
-
-  (_e, ciphertext) <-
-    allocRet clen $ \pc ->
-    -- Allocate ciphertext, including nonce and mac
-    withSecret (U.fromKey key) $ \pkey ->
-    withPlaintext message $ \pmessage ->
-    do
-      let pnonce = pc
-          -- ^ Nonce allocated at byte 0 of ciphertext
-          pctext = plusPtr pc U.nonceSize
-          -- ^ Mac and encrypted message after nonce
-      sodium_randombytes pc (asNum U.nonceBytes)
-      -- Initialize with random nonce
-      sodium_secretbox_easy pctext
-                            pmessage mlenC
-                            pnonce pkey
+secretBox :: (Plaintext p)
+          => Key -> p -> IO (SecretBox p)
+secretBox key message = do
+  ciphertext <- U.secretBoxRandom key
+    (fromPlaintext message :: ByteString)
   return $ SecretBox ciphertext
 
 {-|
 Decrypt the 'SecretBox' and verify it has not been tampered with
 -}
-openSecretBox :: forall message bytes. (Plaintext message, ByteArray bytes)
-              => Key -> SecretBox message bytes -> Maybe message
-openSecretBox key (SecretBox ciphertext) =
-  withLithium $ -- Ensure Sodium is initialized
-  let clenC = fromIntegral $ B.length ciphertext - U.nonceSize
-      -- ^ Length of SecretBox ciphertext:
-      --   ciphertext - nonce
-      mlen = B.length ciphertext - tagSize
-      -- ^ Length of original plaintext:
-      --   ciphertext - (nonce + mac)
+openSecretBox :: Plaintext p
+              => Key -> SecretBox p -> Maybe p
+openSecretBox key (SecretBox ciphertext) = do
+  decrypted <- U.openSecretBoxPrefix key ciphertext
+  toPlaintext (decrypted :: ByteString)
 
-      (e, message) = unsafePerformIO $
-        allocRet mlen $ \pmessage ->
-        -- Allocate plaintext
-        withSecret (U.fromKey key) $ \pkey ->
-        withByteArray ciphertext $ \pc ->
-        do
-          let pnonce = pc
-              -- ^ Nonce begins at byte 0
-              pctext = plusPtr pc U.nonceSize
-              -- ^ Mac and encrypted message after nonce
-          sodium_secretbox_open_easy pmessage
-                                     pctext clenC
-                                     pnonce pkey
-  in case e of
-    0 -> toPlaintext (message :: bytes)
-    _ -> Nothing
-
-newtype SecretBox plaintext bytes = SecretBox
-  { unSecretBox :: bytes } deriving (Eq, Show, NFData)
+newtype SecretBox plaintext = SecretBox
+  { getCiphertext :: ByteString } deriving (Eq, Show, NFData)
 
 {-|
 Size of the tag prepended to the ciphertext; the amount by which a 'aead'

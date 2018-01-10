@@ -21,10 +21,15 @@ module Crypto.Lithium.Util.Sized
 
   , emptyN
   , allocRetN
+  , singletonN
+  , replicateN
 
   , maybeToN
   , coerceToN
   , convertN
+
+  , allZerosN
+  , setN
 
   , appendN
 
@@ -77,6 +82,15 @@ Empty sized byte array
 emptyN :: ByteArray a => N 0 a
 emptyN = N B.empty
 
+singletonN :: ByteArray a => Word8 -> N 1 a
+singletonN x = N $ B.singleton x
+
+{-|
+Create sized byte array of specific byte
+-}
+replicateN :: forall a x. (ByteArray a, KnownNat x) => Word8 -> N x a
+replicateN base = N $ B.replicate (asNum (ByteSize @x)) base
+
 {-|
 Allocate a sized byte array, run the initializer on it, and return
 -}
@@ -121,6 +135,14 @@ Convert between sized byte arrays of same length
 convertN :: forall bin bout n. (ByteOp bin bout, KnownNat n) => N n bin -> N n bout
 convertN (N a) = N $ B.convert a
 
+allZerosN :: ByteArray a => N x a -> Bool
+allZerosN (N a) = B.all (== 0) a
+
+setN :: (ByteArray a, KnownNat i) => proxy i -> N (i + (1 + x)) a -> Word8 -> N (i + (1 + x)) a
+setN proxy bs x =
+  let (hd, tl) = splitN' proxy bs
+      tl' = appendN (singletonN x) $ dropN tl
+  in appendN hd tl'
 
 {-|
 Append sized byte arrays

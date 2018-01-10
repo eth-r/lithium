@@ -29,6 +29,7 @@ library:
     - -Wall
     - -Werror
   exposed-modules:
+    - Crypto.Lithium.Aead
     - Crypto.Lithium.Box
     - Crypto.Lithium.Hash
     - Crypto.Lithium.Password
@@ -36,6 +37,7 @@ library:
     - Crypto.Lithium.SecretBox
     - Crypto.Lithium.Sign
     - Crypto.Lithium.Types
+    - Crypto.Lithium.Unsafe.Aead
     - Crypto.Lithium.Unsafe.Box
     - Crypto.Lithium.Unsafe.Hash
     - Crypto.Lithium.Unsafe.Password
@@ -43,6 +45,7 @@ library:
     - Crypto.Lithium.Unsafe.Sign
     - Crypto.Lithium.Unsafe.Types
   other-modules:
+    - Crypto.Lithium.Internal.Aead
     - Crypto.Lithium.Internal.Box
     - Crypto.Lithium.Internal.Hash
     - Crypto.Lithium.Internal.Init
@@ -91,11 +94,13 @@ tests:
     source-dirs: test
     main: Main.hs
     other-modules:
+      - AeadTest
       - BoxTest
       - HashTest
-      - NatTest
       - PasswordTest
       - SecretBoxTest
+      - SignTest
+      - TestUtils
     dependencies:
       - base
       - base16-bytestring

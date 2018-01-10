@@ -38,6 +38,11 @@ module Crypto.Lithium.Unsafe.SecretBox
   , secretBox
   , openSecretBox
 
+  , secretBoxPrefix
+  , openSecretBoxPrefix
+
+  , secretBoxRandom
+
   , secretBoxDetached
   , openSecretBoxDetached
 
@@ -78,10 +83,6 @@ asKey = Key
 fromKey :: Key -> SecretN KeyBytes
 fromKey (Key k) = k
 
--- instance IsSecretN Key KeyBytes where
---   toSecretN = fromKey
---   fromSecretN = asKey
-
 
 newtype Nonce = Nonce (BytesN NonceBytes) deriving (Show, Eq, NFData)
 
@@ -91,11 +92,6 @@ asNonce = Nonce
 fromNonce :: Nonce -> BytesN NonceBytes
 fromNonce (Nonce n) = n
 
--- instance IsBytesN Nonce NonceBytes where
---   toBytesN = fromNonce
---   fromBytesN = asNonce
---   withByteArray (Nonce n) = withBytesN n
-
 
 newtype Mac = Mac (BytesN MacBytes) deriving (Show, Eq, NFData)
 
@@ -104,11 +100,6 @@ asMac = Mac
 
 fromMac :: Mac -> BytesN MacBytes
 fromMac (Mac m) = m
-
--- instance IsBytesN Mac MacBytes where
---   toBytesN = fromMac
---   fromBytesN = asMac
---   withByteArray (Mac n) = withBytesN n
 
 
 {-|
@@ -126,7 +117,9 @@ newNonce = Nonce <$> randomBytesN
 
 secretBox :: (ByteOp m c)
           => Key -> Nonce -> m -> c
-secretBox (Key key) (Nonce nonce) message = withLithium $
+secretBox (Key key) (Nonce nonce) message =
+  withLithium $
+
   let (_e, ciphertext) = unsafePerformIO $
         allocRet (B.length message + macSize) $ \pc ->
         withSecret key $ \pk ->
@@ -137,13 +130,60 @@ secretBox (Key key) (Nonce nonce) message = withLithium $
 
 openSecretBox :: (ByteOp c m)
               => Key -> Nonce -> c -> Maybe m
-openSecretBox (Key k) (Nonce n) ciphertext = withLithium $
+openSecretBox (Key k) (Nonce n) ciphertext =
+  withLithium $
+
   let (e, message) = unsafePerformIO $
         allocRet (B.length ciphertext - macSize) $ \pm ->
         withSecret k $ \pk ->
         withByteArray n $ \pn ->
         withByteArray ciphertext $ \pc ->
         sodium_secretbox_open_easy pm pc (fromIntegral $ B.length ciphertext) pn pk
+  in case e of
+    0 -> Just message
+    _ -> Nothing
+
+
+secretBoxPrefix :: (ByteOp m c)
+                => Key -> Nonce -> m -> c
+secretBoxPrefix key nonce message =
+  let nonceBs = B.convert $ fromNonce nonce
+      ciphertext = secretBox key nonce message
+  in B.append nonceBs ciphertext
+
+
+secretBoxRandom :: (ByteOp m c)
+                => Key -> m -> IO c
+secretBoxRandom key message = do
+  nonce <- newNonce
+  return $ secretBoxPrefix key nonce message
+
+
+openSecretBoxPrefix :: (ByteOp c m)
+                    => Key -> c -> Maybe m
+openSecretBoxPrefix (Key key) ciphertext =
+  withLithium $ -- Ensure Sodium is initialized
+
+  let clen = B.length ciphertext - nonceSize
+      -- ^ Length of SecretBox ciphertext:
+      --   ciphertext - nonce
+      mlen = clen - macSize
+      -- ^ Length of original plaintext:
+      --   ciphertext - (nonce + mac)
+
+      (e, message) = unsafePerformIO $
+        allocRet mlen $ \pmessage ->
+        -- Allocate plaintext
+        withSecret key $ \pkey ->
+        withByteArray ciphertext $ \pc ->
+        do
+          let pnonce = pc
+              -- ^ Nonce begins at byte 0
+              pctext = plusPtr pc nonceSize
+              -- ^ Mac and encrypted message after nonce
+          sodium_secretbox_open_easy pmessage
+                                     pctext (fromIntegral clen)
+                                     pnonce pkey
   in case e of
     0 -> Just message
     _ -> Nothing

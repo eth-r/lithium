@@ -12,11 +12,12 @@ import qualified Test.Tasty
 import Test.Tasty.Hspec
 import Test.Hspec.QuickCheck
 
+import AeadTest
 import BoxTest
 import HashTest
 import PasswordTest
 import SecretBoxTest
-import NatTest
+import SignTest
 
 main :: IO ()
 main = do
@@ -25,8 +26,9 @@ main = do
 
 spec :: Spec
 spec = parallel $ modifyMaxSuccess (const 10000) $ do
+  describe "Aead" aeadSpec
   describe "Box" boxSpec
   -- describe "Hash" hashSpec
   describe "Password" passwordSpec
   describe "SecretBox" secretBoxSpec
-  describe "Nat" natSpec
+  describe "Sign" signSpec
