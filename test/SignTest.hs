@@ -41,7 +41,7 @@ signSpec = parallel $ do
       prop "doesn't open when perturbed" $
         \alice (Message msg) p ->
           let signed = S.sign (secretKey alice) msg
-              perturbed = U.asSigned $ perturb p $ U.fromSigned signed
+              perturbed = S.asSigned $ perturb p $ S.fromSigned signed
               decrypted = S.openSigned (publicKey alice) perturbed
           in decrypted `shouldBe` (Nothing :: Maybe ByteString)
 
@@ -72,7 +72,7 @@ signSpec = parallel $ do
         \alice (Message msg) p ->
           let signature = S.signDetached (secretKey alice) msg
               isValid = S.verifyDetached (publicKey alice)
-                (U.asSignature $ perturbN p $ U.fromSignature signature) msg
+                (S.asSignature $ perturbN p $ S.fromSignature signature) msg
           in isValid `shouldBe` False
 
       prop "doesn't verify with wrong public key" $

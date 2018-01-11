@@ -42,10 +42,6 @@ module Crypto.Lithium.Unsafe.Sign
   , toPublicKey
   , toSeed
 
-  , Signed
-  , asSigned
-  , fromSigned
-
   , Signature
   , asSignature
   , fromSignature
@@ -157,24 +153,18 @@ asSeed = Seed
 fromSeed :: Seed -> SecretN SeedBytes
 fromSeed (Seed s) = s
 
-newtype Signed m t = Signed
-  { fromSigned :: t } deriving (Show, Eq)
+newtype Signature = Signature
+  { fromSignature :: BytesN SignatureBytes } deriving (Show, Eq)
 
-asSigned :: (Plaintext m, ByteArray b) => m -> Signed m b
-asSigned = Signed . fromPlaintext
-
-newtype Signature m t = Signature
-  { fromSignature :: N SignatureBytes t } deriving (Show, Eq)
-
-instance NFData t => NFData (Signature m t) where
+instance NFData Signature where
   rnf (Signature s) = rnf s
 
-instance ByteArray t => ByteArrayAccess (Signature m t) where
+instance ByteArrayAccess Signature where
   length = const signatureSize
   withByteArray (Signature s) = withByteArray s
 
-asSignature :: (Plaintext m, ByteArray b) => N SignatureBytes b -> Signature m b
-asSignature = Signature
+asSignature :: (ByteArrayAccess b) => N SignatureBytes b -> Signature
+asSignature = Signature . convertN
 
 newKeypair :: IO Keypair
 newKeypair = withLithium $ do
@@ -213,27 +203,26 @@ toSeed (S sk) = withLithium $
         sodium_sign_sk_to_seed pSeed pSk
   in (Seed seed)
 
-sign :: ( Plaintext m
-        , ByteArray b)
-     => SecretKey -> m -> Signed m b
+sign :: ( ByteOp m s )
+     => SecretKey -> m -> s
 sign (S sk) message = withLithium $
-  let mlen = plaintextLength message
+  let mlen = B.length message
       mlenC = fromIntegral mlen
       slen = mlen + signatureSize
       (_e, signed) = unsafePerformIO $
         allocRet slen $ \psigned ->
         withSecret sk $ \pkey ->
-        withPlaintext message $ \pmessage ->
+        withByteArray message $ \pmessage ->
         sodium_sign psigned
                     nullPtr
                     pmessage mlenC
                     pkey
-  in (Signed signed)
+  in signed
 
-openSigned :: forall m b.
-              ( Plaintext m, ByteArray b)
-           => PublicKey -> Signed m b -> Maybe m
-openSigned (P pk) (Signed signed) = withLithium $
+openSigned :: forall m s.
+              ( ByteOp s m )
+           => PublicKey -> s -> Maybe m
+openSigned (P pk) signed = withLithium $
   let slen = B.length signed
       mlen = slen - signatureSize
       slenC = fromIntegral slen
@@ -243,32 +232,30 @@ openSigned (P pk) (Signed signed) = withLithium $
         withByteArray signed $ \psigned ->
         sodium_sign_open pmessage nullPtr psigned slenC pkey
   in case e of
-    0 -> toPlaintext (message :: b)
+    0 -> Just message
     _ -> Nothing
 
-signDetached :: ( Plaintext m
-                , ByteArray b)
-             => SecretKey -> m -> Signature m b
+signDetached :: ( ByteArrayAccess m )
+             => SecretKey -> m -> Signature
 signDetached (S k) message = withLithium $
-  let mlenC = fromIntegral $ plaintextLength message
+  let mlenC = fromIntegral $ B.length message
       (_e, signature) = unsafePerformIO $
         allocRetN $ \psignature ->
         withSecret k $ \pkey ->
-        withPlaintext message $ \pmessage ->
+        withByteArray message $ \pmessage ->
         sodium_sign_detached psignature nullPtr
                              pmessage mlenC
                              pkey
   in (Signature signature)
 
-verifyDetached :: ( Plaintext m
-                  , ByteArray b)
-               => PublicKey -> Signature m b -> m -> Bool
+verifyDetached :: ( ByteArrayAccess m )
+               => PublicKey -> Signature -> m -> Bool
 verifyDetached (P k) (Signature signature) message = withLithium $
-  let mlenC = fromIntegral $ plaintextLength message
+  let mlenC = fromIntegral $ B.length message
       e = unsafePerformIO $
         withByteArray k $ \pkey ->
         withByteArray signature $ \psignature ->
-        withPlaintext message $ \pmessage ->
+        withByteArray message $ \pmessage ->
         sodium_sign_verify_detached psignature
                                     pmessage mlenC
                                     pkey

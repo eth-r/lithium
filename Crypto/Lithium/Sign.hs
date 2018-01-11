@@ -25,10 +25,16 @@ module Crypto.Lithium.Sign
   , U.toPublicKey
 
   , Signed
+  , fromSigned
+  , asSigned
+
   , sign
   , openSigned
 
   , Signature
+  , asSignature
+  , fromSignature
+
   , signDetached
   , verifyDetached
 
@@ -48,23 +54,54 @@ module Crypto.Lithium.Sign
 import qualified Crypto.Lithium.Unsafe.Sign as U
 import Crypto.Lithium.Types
 
-import Data.ByteArray
+-- import Data.ByteArray
 import Data.ByteString
 
 import Foundation hiding (Signed)
 
-type Signed m = U.Signed m ByteString
+newtype Signed m = Signed
+  { fromSigned :: ByteString } deriving (Show, Eq)
+
+asSigned :: ByteString -> Signed m
+asSigned = Signed
 
 sign :: ( Plaintext p ) => U.SecretKey -> p -> Signed p
-sign key plaintext = U.sign key plaintext
+sign key plaintext = Signed $ U.sign key (fromPlaintext plaintext :: ByteString)
 
 openSigned :: ( Plaintext p ) => U.PublicKey -> Signed p -> Maybe p
-openSigned key signed = U.openSigned key signed
+openSigned key (Signed signed) = do
+  opened <- U.openSigned key signed :: Maybe ByteString
+  toPlaintext opened
 
-type Signature m = U.Signature m Bytes
+newtype Signature m = Signature U.Signature deriving (Eq, Show)
+
+asSignature :: BytesN U.SignatureBytes -> Signature m
+asSignature bs = Signature $ U.asSignature bs
+
+fromSignature :: Signature m -> BytesN U.SignatureBytes
+fromSignature (Signature s) = U.fromSignature s
 
 signDetached :: ( Plaintext p ) => U.SecretKey -> p -> Signature p
-signDetached key plaintext = U.signDetached key plaintext
+signDetached key plaintext = Signature $
+  U.signDetached key (fromPlaintext plaintext :: ByteString)
 
 verifyDetached :: ( Plaintext p ) => U.PublicKey -> Signature p -> p -> Bool
-verifyDetached key signature plaintext = U.verifyDetached key signature plaintext
+verifyDetached key (Signature signature) plaintext =
+  U.verifyDetached key signature (fromPlaintext plaintext :: ByteString)
+
+{-
+newtype SignedSecret m = SignedSecret
+  { fromSignedSecret :: ScrubbedBytes } deriving (Show, Eq)
+
+{-|
+Sign a secret value such as an encryption key, while preserving its secrecy
+-}
+signSecret :: SecretBytes s => U.SecretKey -> s -> SignedSecret s
+signSecret key secret = SignedSecret $ U.sign key $ toSecretBytes secret
+
+{-|
+Open a signed secret value
+-}
+openSignedSecret :: SecretBytes s => U.PublicKey -> SignedSecret s -> Maybe s
+openSignedSecret key (SignedSecret s) = fromSecretBytes <$> U.openSigned key s
+-}
