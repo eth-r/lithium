@@ -24,6 +24,9 @@ module Crypto.Lithium.Util.Sized
   , singletonN
   , replicateN
 
+  , copyN
+  , copyN'
+
   , maybeToN
   , coerceToN
   , convertN
@@ -64,8 +67,8 @@ type ByteOps a b c = (ByteArrayAccess a, ByteArrayAccess b, ByteArray c)
 
 newtype N (l :: Nat) t = N t deriving (Eq, Ord, Show, NFData)
 
-instance (ByteArray b, KnownNat l) => ByteArrayAccess (N l b) where
-  length _ = asNum (ByteSize @l)
+instance (ByteArray b) => ByteArrayAccess (N l b) where
+  length (N bs) = B.length bs
   withByteArray (N bs) = B.withByteArray bs
 
 
@@ -101,6 +104,21 @@ allocRetN f = do
   (e, bs) <- B.allocRet len f
   return (e, N bs)
 
+{-|
+Copy a sized byte array, run the initializer on it, and return
+-}
+copyN :: forall a x p. (ByteArray a, KnownNat x)
+      => N x a -> (Ptr p -> IO ()) -> IO (N x a)
+copyN bs f = N <$> B.copy bs f
+
+{-|
+Copy a sized byte array, run the initializer on it, and return
+-}
+copyN' :: forall a x p e. (ByteArray a, KnownNat x)
+      => N x a -> (Ptr p -> IO e) -> IO (e, N x a)
+copyN' bs f = do
+  (e, bs') <- B.copyRet bs f
+  return (e, N bs')
 
 {-|
 Convert a byte array to a sized byte array

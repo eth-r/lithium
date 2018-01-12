@@ -35,6 +35,8 @@ library:
     - Crypto.Lithium.Password
     - Crypto.Lithium.Random
     - Crypto.Lithium.SecretBox
+    - Crypto.Lithium.SecretStream
+    - Crypto.Lithium.ShortHash
     - Crypto.Lithium.Sign
     - Crypto.Lithium.Types
     - Crypto.Lithium.Unsafe.Aead
@@ -42,6 +44,8 @@ library:
     - Crypto.Lithium.Unsafe.Hash
     - Crypto.Lithium.Unsafe.Password
     - Crypto.Lithium.Unsafe.SecretBox
+    - Crypto.Lithium.Unsafe.SecretStream
+    - Crypto.Lithium.Unsafe.ShortHash
     - Crypto.Lithium.Unsafe.Sign
     - Crypto.Lithium.Unsafe.Types
   other-modules:
@@ -52,6 +56,7 @@ library:
     - Crypto.Lithium.Internal.Password
     - Crypto.Lithium.Internal.Random
     - Crypto.Lithium.Internal.SecretBox
+    - Crypto.Lithium.Internal.SecretStream
     - Crypto.Lithium.Internal.Sign
     - Crypto.Lithium.Internal.Util
     - Crypto.Lithium.Util.Init
@@ -76,8 +81,11 @@ benchmarks:
       - BoxBench
       - HashBench
       - RandomBench
+      - SignBench
+      - BenchUtils
     dependencies:
       - base
+      - bytestring
       - deepseq
       - lithium
       - memory

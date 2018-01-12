@@ -28,7 +28,7 @@ spec :: Spec
 spec = parallel $ modifyMaxSuccess (const 1000) $ do
   describe "Aead" aeadSpec
   describe "Box" boxSpec
-  -- describe "Hash" hashSpec
+  describe "Hash" hashSpec
   describe "Password" passwordSpec
   describe "SecretBox" secretBoxSpec
   describe "Sign" signSpec

@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7666288165850228d4bd217a594d8a8c1bea2799218bda6376b5e9b2cb45c147
+-- hash: 9eefce1399b7245419f8d4889927bbee01d7d6ae86bb27c460cb37bf0ffc0e6b
 
 name:           lithium
 version:        0.0.0
@@ -48,6 +48,8 @@ library
       Crypto.Lithium.Password
       Crypto.Lithium.Random
       Crypto.Lithium.SecretBox
+      Crypto.Lithium.SecretStream
+      Crypto.Lithium.ShortHash
       Crypto.Lithium.Sign
       Crypto.Lithium.Types
       Crypto.Lithium.Unsafe.Aead
@@ -55,6 +57,8 @@ library
       Crypto.Lithium.Unsafe.Hash
       Crypto.Lithium.Unsafe.Password
       Crypto.Lithium.Unsafe.SecretBox
+      Crypto.Lithium.Unsafe.SecretStream
+      Crypto.Lithium.Unsafe.ShortHash
       Crypto.Lithium.Unsafe.Sign
       Crypto.Lithium.Unsafe.Types
   other-modules:
@@ -65,6 +69,7 @@ library
       Crypto.Lithium.Internal.Password
       Crypto.Lithium.Internal.Random
       Crypto.Lithium.Internal.SecretBox
+      Crypto.Lithium.Internal.SecretStream
       Crypto.Lithium.Internal.Sign
       Crypto.Lithium.Internal.Util
       Crypto.Lithium.Util.Init
@@ -113,6 +118,7 @@ benchmark lithium-benchmarks
       sodium
   build-depends:
       base
+    , bytestring
     , criterion
     , deepseq
     , lithium
@@ -121,4 +127,6 @@ benchmark lithium-benchmarks
       BoxBench
       HashBench
       RandomBench
+      SignBench
+      BenchUtils
   default-language: Haskell2010

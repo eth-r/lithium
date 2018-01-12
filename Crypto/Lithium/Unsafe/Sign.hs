@@ -29,6 +29,8 @@ module Crypto.Lithium.Unsafe.Sign
   , asSeed
   , fromSeed
 
+  , newSeed
+
   , Keypair
   , asKeypair
   , fromKeypair
@@ -110,7 +112,15 @@ fromSecretKey (S k) = k
 {-|
 Opaque 'sign' public key type
 -}
-newtype PublicKey = P (BytesN PublicKeyBytes) deriving (Show, Eq, NFData)
+newtype PublicKey = P (BytesN PublicKeyBytes) deriving (Show, Eq, Ord, NFData, ByteArrayAccess)
+
+instance Plaintext PublicKey where
+  toPlaintext bs = do
+    bsN <- toPlaintext bs
+    return $ asPublicKey bsN
+  fromPlaintext (P k) = fromPlaintext k
+  withPlaintext (P k) = withPlaintext k
+  plaintextLength _ = publicKeySize
 
 {-|
 Function for interpreting an arbitrary byte array as a 'PublicKey'
@@ -147,6 +157,9 @@ newtype Seed = Seed (SecretN SeedBytes) deriving (Show, Eq)
 instance NFData Seed where
   rnf (Seed s) = rnf s
 
+newSeed :: IO Seed
+newSeed = Seed <$> randomSecretN
+
 asSeed :: SecretN SeedBytes -> Seed
 asSeed = Seed
 
@@ -154,7 +167,7 @@ fromSeed :: Seed -> SecretN SeedBytes
 fromSeed (Seed s) = s
 
 newtype Signature = Signature
-  { fromSignature :: BytesN SignatureBytes } deriving (Show, Eq)
+  { fromSignature :: BytesN SignatureBytes } deriving (Show, Eq, Ord)
 
 instance NFData Signature where
   rnf (Signature s) = rnf s
@@ -162,6 +175,12 @@ instance NFData Signature where
 instance ByteArrayAccess Signature where
   length = const signatureSize
   withByteArray (Signature s) = withByteArray s
+
+instance Plaintext Signature where
+  toPlaintext bs = do
+    bsN <- toPlaintext bs
+    return $ asSignature (bsN :: BytesN SignatureBytes)
+  fromPlaintext = fromPlaintext . fromSignature
 
 asSignature :: (ByteArrayAccess b) => N SignatureBytes b -> Signature
 asSignature = Signature . convertN

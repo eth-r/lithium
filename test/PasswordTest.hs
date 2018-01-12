@@ -14,16 +14,11 @@ import Crypto.Lithium.SecretBox as S
 import Crypto.Lithium.Unsafe.Password as U
 import Crypto.Lithium.Unsafe.Types
 
-
 import Control.Monad.IO.Class
 import Data.ByteArray (Bytes, ScrubbedBytes)
 import qualified Data.ByteArray as B
 import Data.ByteString.Base16
 import Data.ByteString (ByteString)
-
--- instance PasswordProtectable Secret where
---   protect = passwordProtect
---   open = passwordOpen
 
 passwordSpec :: Spec
 passwordSpec = parallel $ do

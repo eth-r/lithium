@@ -1,8 +1,10 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -26,7 +28,14 @@ module Crypto.Lithium.Unsafe.Hash
   , fromDigest
 
   , newKey
+
   , genericHash
+
+  , genericHashInit
+  , genericHashUpdate
+  , genericHashFinal
+
+  , streamingHash
 
   , MinDigestBytes
   , minDigestBytes
@@ -51,76 +60,119 @@ module Crypto.Lithium.Unsafe.Hash
   , KeyBytes
   , keyBytes
   , keySize
+
+  , StateBytes
+  , stateBytes
+  , stateSize
   ) where
 
 import Crypto.Lithium.Internal.Util
 import Crypto.Lithium.Internal.Hash as I
 import Crypto.Lithium.Unsafe.Types
 
-import Foundation
+import Foundation hiding (Foldable)
 import Control.DeepSeq
 import Data.ByteArray as B
+import Data.Foldable as F
 
+type KeySized n = Between MinKeyBytes MaxKeyBytes n
 
 newtype Key (n :: Nat) = Key (SecretN n) deriving (Eq, Show, NFData)
 
-asKey :: Between MinKeyBytes MaxKeyBytes n
-      => SecretN n -> Key n
+asKey :: KeySized n => SecretN n -> Key n
 asKey = Key
 
-fromKey :: Between MinKeyBytes MaxKeyBytes n
-        => Key n -> SecretN n
+fromKey :: KeySized n => Key n -> SecretN n
 fromKey (Key k) = k
 
+type DigestSized n = Between MinDigestBytes MaxDigestBytes n
 
-newtype Digest (n :: Nat) = Digest (BytesN n) deriving (Eq, Show, NFData)
+newtype Digest (n :: Nat) = Digest (BytesN n) deriving (Eq, Show, Ord, NFData, ByteArrayAccess)
 
-asDigest :: Between MinDigestBytes MaxDigestBytes n
-         => BytesN n -> Digest n
+instance DigestSized n => Plaintext (Digest n) where
+  toPlaintext bs = asDigest <$> toPlaintext bs
+  fromPlaintext (Digest d) = fromPlaintext d
+  withPlaintext (Digest d) = withPlaintext d
+  plaintextLength (Digest d) = plaintextLength d
+
+asDigest :: DigestSized n => BytesN n -> Digest n
 asDigest = Digest
 
-fromDigest :: Between MinDigestBytes MaxDigestBytes n
-           => Digest n -> BytesN n
+fromDigest :: DigestSized n => Digest n -> BytesN n
 fromDigest (Digest d) = d
 
 
-newKey :: forall n.
-          ( Between MinKeyBytes MaxKeyBytes n )
-       => IO (Key n)
-newKey = withLithium $ Key <$> randomSecretN
+newKey :: KeySized n => IO (Key n)
+newKey = Key <$> randomSecretN
 
 {-
 
 -}
 genericHash :: forall a n k.
                ( ByteArrayAccess a
-               , Between MinDigestBytes MaxDigestBytes n
-               , KnownNat k
+               , DigestSized n
                )
             => Maybe (Key k) -> a -> Digest n
 genericHash key m = withLithium $
-  let len = ByteSize :: ByteSize n
-      hashLength = asNum len
-  in case key of
+  let mlen = fromIntegral $ B.length m
+      hashLength = asNum (ByteSize @n)
 
-    Nothing ->
-      let (_e, result) = unsafePerformIO $
-            allocRetN $ \ph ->
-            withByteArray m $ \pm ->
-            sodium_generichash ph hashLength
-                               pm (fromIntegral $ B.length m)
+      (_e, result) = unsafePerformIO $
+        allocRetN $ \pdigest ->
+        withByteArray m $ \pmessage ->
+        case key of
+          Nothing ->
+            sodium_generichash pdigest hashLength
+                               pmessage mlen
                                nullPtr 0
-      in Digest result
+          Just (Key k) ->
+            withSecret k $ \pkey ->
+            sodium_generichash pdigest hashLength
+                               pmessage mlen
+                               pkey (fromIntegral $ secretLengthN k)
+  in (Digest result)
 
-    Just (Key k) ->
-      let (_e, result) = unsafePerformIO $
-            allocRetN $ \ph ->
-            withSecret k $ \pk ->
-            withByteArray m $ \pm ->
-            sodium_generichash ph hashLength
-                               pm (fromIntegral $ B.length m)
-                               pk (fromIntegral $ secretLengthN k)
-      in Digest result
+newtype State (n :: Nat) = State (BytesN StateBytes) deriving (Eq, Ord, ByteArrayAccess)
+
+genericHashInit :: forall n k. DigestSized n => Maybe (Key k) -> State n
+genericHashInit key = withLithium $
+  let outLen = asNum (ByteSize @n)
+      (_e, result) = unsafePerformIO $
+        allocRetN $ \pstate ->
+        case key of
+          Nothing ->
+            sodium_generichash_init pstate
+                                    nullPtr 0
+                                    outLen
+          Just (Key k) ->
+            withSecret k $ \pkey ->
+            sodium_generichash_init pstate
+                                    pkey (fromIntegral $ secretLengthN k)
+                                    outLen
+  in (State result)
+
+genericHashUpdate :: forall n a. ByteArrayAccess a => State n -> a -> State n
+genericHashUpdate (State state) chunk = withLithium $
+  let clen = fromIntegral $ B.length chunk
+      state' = unsafePerformIO $
+        copyN state $ \pstate' ->
+        withByteArray chunk $ \pchunk ->
+        sodium_generichash_update pstate' pchunk clen >> return ()
+  in (State state')
+
+genericHashFinal :: forall n. DigestSized n => State n -> Digest n
+genericHashFinal (State state) = withLithium $
+  let outLen = asNum (ByteSize @n)
+      (_state', digest) = unsafePerformIO $
+        allocRetN $ \pdigest ->
+        copyN state $ \pstate' ->
+        sodium_generichash_final pstate' pdigest outLen >> return ()
+  in (Digest digest)
+
+streamingHash :: (Foldable t, DigestSized n, ByteArrayAccess a) => Maybe (Key k) -> t a -> Digest n
+streamingHash key t =
+  let state = genericHashInit key
+  in genericHashFinal $ F.foldl' genericHashUpdate state t
 
 -- hashSaltPersonal :: forall a n k.
 --                     ( ByteArrayAccess a
@@ -169,3 +221,10 @@ keyBytes = ByteSize
 
 keySize :: Int
 keySize = fromIntegral sodium_generichash_keybytes
+
+type StateBytes = 384
+stateBytes :: ByteSize StateBytes
+stateBytes = ByteSize
+
+stateSize :: Int
+stateSize = fromIntegral sodium_generichash_statebytes

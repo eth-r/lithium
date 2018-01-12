@@ -29,6 +29,8 @@ module Crypto.Lithium.Util.Secret
 
   , emptySecretN
   , allocSecretN
+  , copySecretN
+  , copySecretN'
   , withSecret
   , secretLengthN
 
@@ -139,7 +141,15 @@ allocSecretN f = do
   (e, ns) <- allocRetN f
   return (e, Conceal ns)
 
-secretLengthN :: forall l. KnownNat l => SecretN l -> Int
+copySecretN :: KnownNat l => SecretN l -> (Ptr p -> IO ()) -> IO (SecretN l)
+copySecretN (Conceal bs) f = Conceal <$> copyN bs f
+
+copySecretN' :: KnownNat l => SecretN l -> (Ptr p -> IO e) -> IO (e, SecretN l)
+copySecretN' (Conceal bs) f = do
+  (e, bs') <- copyN' bs f
+  return (e, Conceal bs')
+
+secretLengthN :: forall l. SecretN l -> Int
 secretLengthN (Conceal s) = B.length s
 
 {-|
