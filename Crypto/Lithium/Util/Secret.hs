@@ -71,9 +71,9 @@ instance Applicative Secret where
 instance Monad Secret where
   (Conceal a) >>= f = f a
 
-instance ByteArray a => Monoid (Secret a) where
-  mempty = Conceal $ B.empty
-  mappend = (<>)
+instance Monoid a => Monoid (Secret a) where
+  mempty = Conceal mempty
+  mappend (Conceal a) (Conceal b) = Conceal $ a <> b
 
 -- newtype SecretT m a = SecretT { runSecretT :: m (Secret a) }
 

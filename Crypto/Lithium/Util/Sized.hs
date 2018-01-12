@@ -53,12 +53,17 @@ module Crypto.Lithium.Util.Sized
 
 import Foundation
 import Basement.Compat.Base
+-- import Basement.Numerical.Multiplicative
+
+-- import Data.Bits
 
 import Data.ByteArray
   ( ByteArray
   , ByteArrayAccess
   )
 import qualified Data.ByteArray as B
+-- import Data.ByteString (ByteString)
+-- import qualified Data.ByteString as BS
 import Control.DeepSeq
 import Crypto.Lithium.Util.Nat
 
@@ -71,13 +76,111 @@ instance (ByteArray b) => ByteArrayAccess (N l b) where
   length (N bs) = B.length bs
   withByteArray (N bs) = B.withByteArray bs
 
+{-- fun but dangerous for obscure memory reasons
+
+instance (ByteArray b, KnownNat l) => Bits (N l b) where
+  (.&.) = zipWithN (.&.)
+  (.|.) = zipWithN (.|.)
+  xor = xorN
+  complement = mapN complement
+  shiftL (N bs) by = N $ B.convert $ shiftBitsL (bitth by) $
+    shiftBytesL (byteth by) $ B.convert bs
+  shiftR (N bs) by = N $ B.convert $ shiftBitsR (bitth by) $
+    shiftBytesR (byteth by) $ B.convert bs
+  rotateL (N bs) by = N $ B.convert $ rotateBitsL (bitth by) $
+    rotateBytesL (byteth by) $ B.convert bs
+  rotateR (N bs) by = N $ B.convert $ rotateBitsR (bitth by) $
+    rotateBytesR (byteth by) $ B.convert bs
+  bitSizeMaybe bs = Just $ 8 * B.length bs
+  isSigned _ = False
+  testBit (N bs) i = testBit (B.index bs $ byteth i) $ bitth i
+  bit i = coerceToN $ B.convert $ BS.snoc heads (bit i')
+    where (ib, i') = bitByteth i
+          heads = BS.replicate ib 0
+  popCount (N bs) = BS.foldl' (\acc b -> acc + popCount b) 0 $ B.convert bs
+
+bitth :: Int -> Int
+bitth x = x `mod` 8
+
+byteth :: Int -> Int
+byteth x = x `div` 8
+
+bitByteth :: Int -> (Int, Int)
+bitByteth x = x `divMod` 8
+
+shiftBytesL :: Int -> ByteString -> ByteString
+shiftBytesL by bs
+  | by >= blen = BS.replicate blen 0
+  | by < 0 = shiftBytesR (-by) bs
+  | otherwise = BS.append (BS.drop by bs) (BS.replicate by 0)
+  where blen = BS.length bs
+
+shiftBitsL :: Int -> ByteString -> ByteString
+shiftBitsL by bs
+  | by < 0 = shiftBitsR (-by) bs
+  | otherwise = BS.pack $ BS.zipWith (.|.) shifted shifted'
+  where shifted = BS.map (flip shiftL by') bs
+        shifted' = shiftBytesL 1 $ BS.map (flip shiftL $ 8 - by') bs
+        by' = bitth by
+
+shiftBytesR :: Int -> ByteString -> ByteString
+shiftBytesR by bs
+  | by >= blen = BS.replicate blen 0
+  | by < 0 = shiftBytesL (-by) bs
+  | otherwise = BS.append (BS.replicate by 0) (BS.take (blen - by) bs)
+  where blen = BS.length bs
+
+shiftBitsR :: Int -> ByteString -> ByteString
+shiftBitsR by bs
+  | by < 0 = shiftBitsL (-by) bs
+  | otherwise = BS.pack $ BS.zipWith (.|.) shifted shifted'
+  where shifted = BS.map (flip shiftR by') bs
+        shifted' = shiftBytesR 1 $ BS.map (flip shiftR $ 8 - by') bs
+        by' = bitth by
+
+rotateBytesL :: Int -> ByteString -> ByteString
+rotateBytesL by bs =
+  BS.append (BS.drop by' bs) (BS.take by' bs)
+  where blen = BS.length bs
+        by' = by `mod` blen
+
+rotateBitsL :: Int -> ByteString -> ByteString
+rotateBitsL by bs
+  | by < 0 = rotateBitsR (-by) bs
+  | otherwise = BS.pack $ BS.zipWith (.|.) rotated rotated'
+  where rotated = BS.map (flip rotateL by') bs
+        rotated' = rotateBytesL 1 $ BS.map (flip rotateL $ 8 - by') bs
+        by' = bitth by
+
+rotateBytesR :: Int -> ByteString -> ByteString
+rotateBytesR by bs =
+  BS.append (BS.drop by' bs) (BS.take by' bs)
+  where blen = BS.length bs
+        by' = blen - (by `mod` blen)
+
+rotateBitsR :: Int -> ByteString -> ByteString
+rotateBitsR by bs
+  | by < 0 = rotateBitsL (-by) bs
+  | otherwise = BS.pack $ BS.zipWith (.|.) rotated rotated'
+  where rotated = BS.map (flip rotateR by') bs
+        rotated' = rotateBytesR 1 $ BS.map (flip rotateR $ 8 - by') bs
+        by' = bitth by
+
+mapN :: ByteArray a => (Word8 -> Word8) -> N l a -> N l a
+mapN f (N bs) = N $ B.convert $
+  BS.map f (B.convert bs)
+
+zipWithN :: ByteOps a b c => (Word8 -> Word8 -> Word8) -> N l a -> N l b -> N l c
+zipWithN f (N as) (N bs) = N $ B.convert $
+  BS.pack $ BS.zipWith f (B.convert as) (B.convert bs)
+
+--}
 
 {-|
 Return just the contents of a sized byte array
 -}
 fromN :: ByteArray a => N l a -> a
 fromN (N a) = a
-
 
 {-|
 Empty sized byte array
