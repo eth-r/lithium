@@ -13,7 +13,7 @@
 {-# OPTIONS_HADDOCK hide, show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Unsafe.SecretBox
-Description : Symmetric-key encryption made easy
+Description : XSalsa20Poly1305 symmetric-key encryption
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai

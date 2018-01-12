@@ -1,11 +1,12 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_HADDOCK show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Box
-Description : Public-key encryption made easy and safe
+Description : Curve25519 public-key encryption
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai
@@ -13,7 +14,8 @@ Stability   : experimental
 Portability : unknown
 -}
 module Crypto.Lithium.Box
-  ( U.Keypair
+  ( -- * Types
+    U.Keypair
   , U.newKeypair
   , U.publicKey
   , U.secretKey
@@ -25,12 +27,22 @@ module Crypto.Lithium.Box
   , U.fromPublicKey
 
   , Box(..)
+
+  -- * Public-key encryption
   , box
   , openBox
 
+  -- * Constants
+  , TagBytes
   , tagBytes
   , tagSize
+
+  , U.PublicKeyBytes
+  , U.publicKeyBytes
   , U.publicKeySize
+
+  , U.SecretKeyBytes
+  , U.secretKeyBytes
   , U.secretKeySize
   ) where
 
@@ -147,9 +159,10 @@ Size of the tag prepended to the ciphertext; the amount by which a 'box'
 ciphertext is longer than the corresponding plaintext. Consists of a nonce,
 randomly generated to remove pitfalls for users, and a mac.
 -}
-type TagBytes = U.NonceBytes + U.MacBytes
+type TagBytes = 40
+-- | Tag length as a proxy value
 tagBytes :: ByteSize TagBytes
 tagBytes = ByteSize
-
+-- | Tag length as a regular value
 tagSize :: Int
 tagSize = U.nonceSize + U.macSize

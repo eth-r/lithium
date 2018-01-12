@@ -7,7 +7,7 @@
 {-# OPTIONS_HADDOCK hide, show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Unsafe.Box
-Description : Curve25519 public-key encryption made easy
+Description : Curve25519 public-key encryption
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai

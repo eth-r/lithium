@@ -11,7 +11,7 @@
 {-# OPTIONS_HADDOCK hide, show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Unsafe.ShortHash
-Description : Cryptographic hashing made easy
+Description : SipHash-2-4
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai
@@ -61,6 +61,12 @@ newtype Digest = Digest (BytesN DigestBytes) deriving (Eq, Show, NFData)
 instance ByteArrayAccess Digest where
   length _ = digestSize
   withByteArray (Digest bs) = withByteArray bs
+
+instance Plaintext Digest where
+  fromPlaintext (Digest bs) = fromPlaintext bs
+  toPlaintext bs = Digest <$> toPlaintext bs
+  withPlaintext (Digest bs) = withPlaintext bs
+  plaintextLength _ = digestSize
 
 asDigest :: BytesN DigestBytes -> Digest
 asDigest = Digest

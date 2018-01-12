@@ -11,7 +11,7 @@
 {-# OPTIONS_HADDOCK hide, show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Unsafe.Password
-Description : Password-protecting data made easy
+Description : Argon2 password hash
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai

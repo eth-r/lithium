@@ -11,7 +11,7 @@
 {-# OPTIONS_HADDOCK hide, show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Unsafe.Hash
-Description : Cryptographic hashing made easy
+Description : Blake2b hash
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai

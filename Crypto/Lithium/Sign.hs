@@ -3,15 +3,16 @@
 {-# OPTIONS_HADDOCK show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Sign
-Description : Ed25519 signatures made easy and safe
+Description : Ed25519 signatures
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai
 Stability   : experimental
 Portability : unknown
 -}
-module Crypto.Lithium.Sign
-  ( U.SecretKey
+module Crypto.Lithium.Sign (
+  -- * Types
+    U.SecretKey
   , U.PublicKey
   , U.asPublicKey
   , U.fromPublicKey
@@ -19,23 +20,14 @@ module Crypto.Lithium.Sign
   , U.Seed
   , U.newSeed
 
-  , U.Keypair
-
-  , U.publicKey
-  , U.secretKey
+  , U.Keypair(..)
 
   , U.newKeypair
   , U.seedKeypair
 
   , U.toPublicKey
 
-  , Signed
-  , fromSigned
-  , asSigned
-
-  , sign'
-  , openSigned
-
+  -- * Detached signatures
   , Signature
   , asSignature
   , fromSignature
@@ -43,6 +35,15 @@ module Crypto.Lithium.Sign
   , sign
   , verify
 
+  -- * Signed messages
+  , Signed
+  , fromSigned
+  , asSigned
+
+  , sign'
+  , openSigned
+
+  -- * Constants
   , U.SecretKeyBytes
   , U.secretKeyBytes
   , U.secretKeySize
@@ -64,14 +65,23 @@ import Data.ByteString
 
 import Foundation hiding (Signed)
 
-newtype Signed m = Signed
-  { fromSigned :: ByteString } deriving (Show, Eq, NFData)
+{-|
+Wrapper for signed messages
 
+Stores the original type as a phantom type to enable transparent conversion
+-}
+newtype Signed m = Signed
+  { fromSigned :: ByteString -- ^ Get the signed message as a 'ByteString'
+  } deriving (Show, Eq, NFData)
+
+{-|
+Interpret a bytestring as a signed message
+-}
 asSigned :: ByteString -> Signed m
 asSigned = Signed
 
 {-|
-Sign a plaintext message of type @m@ and turn it into a @'Signed' m@
+Sign a plaintext message of type @p@ and turn it into a @'Signed' p@
 -}
 sign' :: ( Plaintext p ) => U.SecretKey -> p -> Signed p
 sign' key plaintext = Signed $ U.sign key
@@ -80,18 +90,29 @@ sign' key plaintext = Signed $ U.sign key
 {-|
 Open a signed message
 
-Returns Just message if the signature matches the public key, otherwise Nothing
+Returns @Just message@ if the signature matches the public key, otherwise Nothing
 -}
 openSigned :: ( Plaintext p ) => U.PublicKey -> Signed p -> Maybe p
 openSigned key (Signed signed) = do
   opened <- U.openSigned key signed :: Maybe ByteString
   toPlaintext opened
 
+{-|
+Typed signature
+
+Uses a phantom type to store the type of the corresponding message
+-}
 newtype Signature m = Signature U.Signature deriving (Eq, Show, NFData)
 
+{-|
+Interpret a byte array as a signature
+-}
 asSignature :: BytesN U.SignatureBytes -> Signature m
 asSignature bs = Signature $ U.asSignature bs
 
+{-|
+Encode a signature as a byte array
+-}
 fromSignature :: Signature m -> BytesN U.SignatureBytes
 fromSignature (Signature s) = U.fromSignature s
 

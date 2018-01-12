@@ -12,6 +12,16 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# OPTIONS_HADDOCK hide, show-extensions #-}
+{-|
+Module      : Crypto.Lithium.Util.Secret
+Description : Sized byte arrays
+Copyright   : (c) Promethea Raschke 2018
+License     : public domain
+Maintainer  : eth.raschke@liminal.ai
+Stability   : experimental
+Portability : unknown
+-}
 module Crypto.Lithium.Util.Secret
   ( Secret(..)
   , conceal
@@ -95,6 +105,13 @@ instance Monoid a => Monoid (Secret a) where
 -- instance MonadTrans SecretT where
 --   lift = SecretT . liftM Secret
 
+{-|
+Class representing types that can be encoded and decoded for use in
+cryptographic operations
+
+Many operations store the type of the plaintext as a phantom type, and
+encode and decode transparently for maximum convenience
+-}
 class Plaintext p where
   toPlaintext :: ByteArrayAccess a => a -> Maybe p
   default toPlaintext :: (ByteOp a p) => a -> Maybe p
@@ -180,6 +197,11 @@ maybeConcealN bs = do
   n <- maybeToN $ B.convert bs
   return $ Conceal n
 
+{-|
+Coerce an unsized byte array into a secret sized byte array
+
+Like 'coerceToN', will truncate longer arrays and expand shorter arrays
+-}
 coerceConcealN :: forall a n. (ByteArrayAccess a, KnownNat n) => a -> SecretN n
 coerceConcealN = Conceal . coerceToN . B.convert
 

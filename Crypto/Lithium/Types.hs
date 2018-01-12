@@ -1,4 +1,14 @@
 {-# LANGUAGE ExplicitNamespaces #-}
+{-# OPTIONS_HADDOCK show-extensions #-}
+{-|
+Module      : Crypto.Lithium.Types
+Description : Various type utilities
+Copyright   : (c) Promethea Raschke 2018
+License     : public domain
+Maintainer  : eth.raschke@liminal.ai
+Stability   : experimental
+Portability : unknown
+-}
 module Crypto.Lithium.Types
   ( ByteSize(..)
 

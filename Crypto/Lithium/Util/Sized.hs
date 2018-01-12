@@ -12,6 +12,16 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# OPTIONS_HADDOCK hide, show-extensions #-}
+{-|
+Module      : Crypto.Lithium.Util.Sized
+Description : Sized byte arrays
+Copyright   : (c) Promethea Raschke 2018
+License     : public domain
+Maintainer  : eth.raschke@liminal.ai
+Stability   : experimental
+Portability : unknown
+-}
 module Crypto.Lithium.Util.Sized
   ( type ByteOp
   , type ByteOps
@@ -67,10 +77,21 @@ import qualified Data.ByteArray as B
 import Control.DeepSeq
 import Crypto.Lithium.Util.Nat
 
+{-|
+Convenience wrapper for the common constraint of byte array access in,
+one byte array out
+-}
 type ByteOp a b = (ByteArrayAccess a, ByteArray b)
+{-|
+Convenience wrapper for the common constraint of two byte array accesses in,
+one byte array out
+-}
 type ByteOps a b c = (ByteArrayAccess a, ByteArrayAccess b, ByteArray c)
 
-newtype N (l :: Nat) t = N t deriving (Eq, Ord, Show, NFData)
+{-|
+A type for representing byte arrays whose length is known on the type level
+-}
+newtype ByteArrayAccess t => N (l :: Nat) t = N t deriving (Eq, Ord, Show, NFData)
 
 instance (ByteArray b) => ByteArrayAccess (N l b) where
   length (N bs) = B.length bs
@@ -188,6 +209,9 @@ Empty sized byte array
 emptyN :: ByteArray a => N 0 a
 emptyN = N B.empty
 
+{-|
+Sized byte array of a single byte
+-}
 singletonN :: ByteArray a => Word8 -> N 1 a
 singletonN x = N $ B.singleton x
 
@@ -256,9 +280,15 @@ Convert between sized byte arrays of same length
 convertN :: forall bin bout n. (ByteOp bin bout, KnownNat n) => N n bin -> N n bout
 convertN (N a) = N $ B.convert a
 
+{-|
+Test whether the sized byte array is only zeros
+-}
 allZerosN :: ByteArray a => N x a -> Bool
 allZerosN (N a) = B.all (== 0) a
 
+{-|
+Set a byte of the sized byte array to a specific value
+-}
 setN :: (ByteArray a, KnownNat i) => proxy i -> N (i + (1 + x)) a -> Word8 -> N (i + (1 + x)) a
 setN proxy bs x =
   let (hd, tl) = splitN' proxy bs
@@ -298,13 +328,16 @@ dropN = dropN' (ByteSize @x)
 
 
 {-|
-Take the correct number of bytes from the end of the sized byte array
+Take /proxy/ number of bytes from the end of the sized byte array
 -}
 tailN' :: (ByteArray a, KnownNat y) => proxy y -> N (x + y) a -> N y a
 tailN' proxy (N a) = N $ B.drop toDrop a
   where
     toDrop = B.length a - asNum proxy
 
+{-|
+Take the correct number of bytes from the end of the sized byte array
+-}
 tailN :: forall a x y. (ByteArray a, KnownNat y) => N (x + y) a -> N y a
 tailN = tailN' (ByteSize @y)
 

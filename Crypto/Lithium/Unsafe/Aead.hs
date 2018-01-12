@@ -10,7 +10,7 @@
 {-# OPTIONS_HADDOCK hide, show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Unsafe.Aead
-Description : AEAD made easy
+Description : XChaCha20Poly1305-IETF AEAD
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai
@@ -336,23 +336,29 @@ openAeadDetachedN (Key key) (Nonce nonce) (Mac mac) ciphertext aad =
     0 -> Just message
     _ -> Nothing
 
+-- | Length of a 'Key' as a type-level constant
 type KeyBytes = 32
+-- | Key length as a proxy value
 keyBytes :: ByteSize KeyBytes
 keyBytes = ByteSize
-
+-- | Key length as a regular value
 keySize :: Int
 keySize = fromInteger $ fromIntegral aead_keybytes
 
+-- | Length of a 'Mac' as a type-level constant
 type MacBytes = 16
+-- | Mac length as a proxy value
 macBytes :: ByteSize MacBytes
 macBytes = ByteSize
-
+-- | Mac length as a regular value
 macSize :: Int
 macSize = fromInteger $ fromIntegral aead_macbytes
 
+-- | Length of a 'Nonce' as a type-level constant
 type NonceBytes = 24
+-- | Nonce length as a proxy value
 nonceBytes :: ByteSize NonceBytes
 nonceBytes = ByteSize
-
+-- | Nonce length as a regular value
 nonceSize :: Int
 nonceSize = fromInteger $ fromIntegral aead_noncebytes

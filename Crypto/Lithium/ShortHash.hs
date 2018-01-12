@@ -8,7 +8,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# OPTIONS_HADDOCK hide, show-extensions #-}
+{-# OPTIONS_HADDOCK show-extensions #-}
 {-|
 Module      : Crypto.Lithium.ShortHash
 Description : Cryptographic hashing made easy
@@ -18,8 +18,9 @@ Maintainer  : eth.raschke@liminal.ai
 Stability   : experimental
 Portability : unknown
 -}
-module Crypto.Lithium.ShortHash
-  ( U.Key
+module Crypto.Lithium.ShortHash (
+  -- * Types
+    U.Key
 
   , Digest
   , asDigest
@@ -27,8 +28,10 @@ module Crypto.Lithium.ShortHash
 
   , U.newKey
 
+  -- * ShortHash
   , shortHash
 
+  -- * Constants
   , U.DigestBytes
   , U.digestBytes
   , U.digestSize
@@ -52,14 +55,22 @@ instance ByteArrayAccess (Digest t) where
   length _ = U.digestSize
   withByteArray (Digest bs) = withByteArray bs
 
+instance Plaintext (Digest t) where
+  fromPlaintext (Digest d) = fromPlaintext d
+  toPlaintext bs = Digest <$> toPlaintext bs
+  withPlaintext (Digest d) = withPlaintext d
+  plaintextLength _ = U.digestSize
+
 asDigest :: BytesN U.DigestBytes -> Digest t
 asDigest = Digest . U.asDigest
 
 fromDigest :: Digest t -> BytesN U.DigestBytes
 fromDigest (Digest d) = U.fromDigest d
 
-{-
+{-|
+Produces a short, quick hash of a given value
 
+Not secure for cryptographic purposes
 -}
 shortHash :: Plaintext t => U.Key -> t -> Digest t
 shortHash key m = Digest $

@@ -9,7 +9,7 @@
 {-# OPTIONS_HADDOCK hide, show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Unsafe.Sign
-Description : Ed25519 signatures made easy
+Description : Ed25519 signatures
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai
@@ -31,12 +31,9 @@ module Crypto.Lithium.Unsafe.Sign
 
   , newSeed
 
-  , Keypair
+  , Keypair(..)
   , asKeypair
   , fromKeypair
-
-  , secretKey
-  , publicKey
 
   , newKeypair
   , seedKeypair
@@ -124,25 +121,26 @@ instance Plaintext PublicKey where
 
 {-|
 Function for interpreting an arbitrary byte array as a 'PublicKey'
-
-
 -}
 asPublicKey :: BytesN PublicKeyBytes -> PublicKey
 asPublicKey = P
 
+{-|
+Encode a public key as a byte array
+-}
 fromPublicKey :: PublicKey -> BytesN PublicKeyBytes
 fromPublicKey (P k) = k
 
+{-|
+Combined public and secret key
+-}
+data Keypair = KP
+  { secretKey :: SecretKey
+  , publicKey :: PublicKey
+  } deriving (Show, Eq)
 
-data Keypair = KP SecretKey PublicKey deriving (Show, Eq)
 instance NFData Keypair where
   rnf (KP s p) = rnf s `seq` rnf p
-
-publicKey :: Keypair -> PublicKey
-publicKey (KP _ pk) = pk
-
-secretKey :: Keypair -> SecretKey
-secretKey (KP sk _) = sk
 
 asKeypair :: SecretN KeypairBytes -> Keypair
 asKeypair s =
@@ -153,16 +151,28 @@ fromKeypair :: Keypair -> SecretN KeypairBytes
 fromKeypair (KP (S sk) (P pk)) =
   appendN <$> sk <*> concealN pk
 
+{-|
+Seed for deriving keypairs from
+-}
 newtype Seed = Seed (SecretN SeedBytes) deriving (Show, Eq)
 instance NFData Seed where
   rnf (Seed s) = rnf s
 
+{-|
+Generate new seed for keypair derivation
+-}
 newSeed :: IO Seed
 newSeed = Seed <$> randomSecretN
 
+{-|
+Convert a secret byte array to a seed
+-}
 asSeed :: SecretN SeedBytes -> Seed
 asSeed = Seed
 
+{-|
+Convert a seed to a secret byte array
+-}
 fromSeed :: Seed -> SecretN SeedBytes
 fromSeed (Seed s) = s
 
@@ -185,6 +195,9 @@ instance Plaintext Signature where
 asSignature :: (ByteArrayAccess b) => N SignatureBytes b -> Signature
 asSignature = Signature . convertN
 
+{-|
+Generate new keypair
+-}
 newKeypair :: IO Keypair
 newKeypair = withLithium $ do
   ((_e, sk), pk) <-
@@ -195,6 +208,9 @@ newKeypair = withLithium $ do
       pk' = P pk
   return $ KP sk' pk'
 
+{-|
+Derive keypair from seed generated earlier
+-}
 seedKeypair :: Seed -> Keypair
 seedKeypair (Seed s) = withLithium $
   let ((_e, sk), pk) = unsafePerformIO $
@@ -206,6 +222,9 @@ seedKeypair (Seed s) = withLithium $
       pk' = P pk
   in (KP sk' pk')
 
+{-|
+Derive the public key corresponding to a secret key
+-}
 toPublicKey :: SecretKey -> PublicKey
 toPublicKey (S sk) = withLithium $
   let (_e, pk) = unsafePerformIO $
@@ -214,6 +233,9 @@ toPublicKey (S sk) = withLithium $
         sodium_sign_sk_to_pk ppk psk
   in (P pk)
 
+{-|
+Derive the seed a given secret key can be generated from
+-}
 toSeed :: SecretKey -> Seed
 toSeed (S sk) = withLithium $
   let (_e, seed) = unsafePerformIO $
@@ -222,6 +244,9 @@ toSeed (S sk) = withLithium $
         sodium_sign_sk_to_seed pSeed pSk
   in (Seed seed)
 
+{-|
+Sign a message, attaching the signature to it
+-}
 sign :: ( ByteOp m s )
      => SecretKey -> m -> s
 sign (S sk) message = withLithium $
@@ -238,6 +263,9 @@ sign (S sk) message = withLithium $
                     pkey
   in signed
 
+{-|
+Check the signature of a signed message, returning the message if valid
+-}
 openSigned :: forall m s.
               ( ByteOp s m )
            => PublicKey -> s -> Maybe m
@@ -254,6 +282,9 @@ openSigned (P pk) signed = withLithium $
     0 -> Just message
     _ -> Nothing
 
+{-|
+Sign a message, generating a 'Signature' separate from the message
+-}
 signDetached :: ( ByteArrayAccess m )
              => SecretKey -> m -> Signature
 signDetached (S k) message = withLithium $
@@ -267,6 +298,9 @@ signDetached (S k) message = withLithium $
                              pkey
   in (Signature signature)
 
+{-|
+Verify a detached signature
+-}
 verifyDetached :: ( ByteArrayAccess m )
                => PublicKey -> Signature -> m -> Bool
 verifyDetached (P k) (Signature signature) message = withLithium $
@@ -282,37 +316,47 @@ verifyDetached (P k) (Signature signature) message = withLithium $
     0 -> True
     _ -> False
 
+-- | Length of a 'PublicKey' as a type-level constant
 type PublicKeyBytes = 32
+-- | Public key length as a proxy value
 publicKeyBytes :: ByteSize PublicKeyBytes
 publicKeyBytes = ByteSize
-
+-- | Public key length as a regular value
 publicKeySize :: Int
 publicKeySize = fromIntegral sodium_sign_publickeybytes
 
+-- | Length of a 'SecretKey' as a type-level constant
 type SecretKeyBytes = 64
+-- | Secret key length as a proxy value
 secretKeyBytes :: ByteSize SecretKeyBytes
 secretKeyBytes = ByteSize
-
+-- | Secret key length as a regular value
 secretKeySize :: Int
 secretKeySize = fromIntegral sodium_sign_secretkeybytes
 
+-- | Length of a combined 'Keypair' as a type-level constant
 type KeypairBytes = SecretKeyBytes + PublicKeyBytes
+-- | Keypair length as a proxy value
 keypairBytes :: ByteSize KeypairBytes
 keypairBytes = ByteSize
-
+-- | Keypair length as a regular value
 keypairSize :: Int
 keypairSize = secretKeySize + publicKeySize
 
+-- | Length of a 'Signature' as a type-level constant
 type SignatureBytes = 64
+-- | Signature length as a proxy value
 signatureBytes :: ByteSize SignatureBytes
 signatureBytes = ByteSize
-
+-- | Signature length as a regular value
 signatureSize :: Int
 signatureSize = fromIntegral sodium_sign_bytes
 
+-- | Length of a 'Seed' as a type-level constant
 type SeedBytes = 32
+-- | Seed length as a proxy value
 seedBytes :: ByteSize SeedBytes
 seedBytes = ByteSize
-
+-- | Seed length as a regular value
 seedSize :: Int
 seedSize = fromIntegral sodium_sign_seedbytes

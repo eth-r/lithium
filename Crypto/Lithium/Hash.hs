@@ -1,17 +1,19 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_HADDOCK show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Hash
-Description : Cryptographic hashing made easy and safe
+Description : Blake2b hash
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai
 Stability   : experimental
 Portability : unknown
 -}
-module Crypto.Lithium.Hash
-  ( Key
+module Crypto.Lithium.Hash (
+  -- * Blake-2b-256
+    Key
   , newKey
 
   , Digest
@@ -20,7 +22,9 @@ module Crypto.Lithium.Hash
 
   , hash
   , keyedHash
+  , streamingHash
 
+  -- * Blake-2b-512
   , LongKey
   , newLongKey
 
@@ -30,21 +34,20 @@ module Crypto.Lithium.Hash
 
   , longHash
   , keyedLongHash
-
-  , streamingHash
   , streamingLongHash
 
+  -- * Constants
   , U.DigestBytes
   , U.digestBytes
   , U.digestSize
 
-  , LongDigestBytes
-  , longDigestBytes
-  , longDigestSize
-
   , U.KeyBytes
   , U.keyBytes
   , U.keySize
+
+  , LongDigestBytes
+  , longDigestBytes
+  , longDigestSize
 
   , LongKeyBytes
   , longKeyBytes
@@ -99,7 +102,7 @@ Opaque 'keyedLongHash' key
 type LongKey = U.Key LongKeyBytes
 
 {-|
-512-bit digest resulting from 'genericHash' or 'keyedHash'
+512-bit digest resulting from 'longHash' or 'keyedLongHash'
 -}
 newtype LongDigest t = LongDigest (U.Digest LongDigestBytes)
   deriving (Eq, Ord, Show, NFData, ByteArrayAccess)
@@ -134,13 +137,13 @@ hash message = Digest $
 {-|
 Generate a new key usable with 'keyedHash'
 
-The key is always 512 bits long
+The key is always 256 bits long
 -}
 newKey :: IO Key
 newKey = U.newKey
 
 {-|
-Hash any data using keyed Blake2b-256 with 256-bit key
+Hash any data using keyed Blake2b-256
 -}
 keyedHash :: Plaintext p => Key -> p -> Digest p
 keyedHash key message = Digest $
@@ -153,11 +156,16 @@ longHash :: Plaintext p => p -> LongDigest p
 longHash message = LongDigest $
   U.genericHash (Nothing :: Maybe LongKey) (fromPlaintext message :: ByteString)
 
+{-|
+Generate a new key usable with 'keyedLongHash'
+
+The key is always 512 bits long
+-}
 newLongKey :: IO LongKey
 newLongKey = U.newKey
 
 {-|
-Hash any data using keyed Blake2b-512 with 512-bit key
+Hash any data using keyed Blake2b-512
 -}
 keyedLongHash :: Plaintext p => LongKey -> p -> LongDigest p
 keyedLongHash key message = LongDigest $
@@ -165,6 +173,8 @@ keyedLongHash key message = LongDigest $
 
 {-|
 Hash a list of bytestring chunks with a streaming API
+
+Gives the same output as calling 'hash' on the concatenation of the input chunks
 -}
 streamingHash :: (Foldable t, Plaintext p) => Maybe Key -> t p -> Digest (t p)
 streamingHash key t =
@@ -172,28 +182,31 @@ streamingHash key t =
       hasher state' item = U.genericHashUpdate state' (fromPlaintext item :: ByteString)
   in Digest $ U.genericHashFinal $ F.foldl' hasher state t
 
+{-|
+Hash a list of bytestring chunks with a streaming API
+
+Gives the same output as calling 'longHash' on the concatenation of the input chunks
+-}
 streamingLongHash :: (Foldable t, Plaintext p) => Maybe LongKey -> t p -> LongDigest (t p)
 streamingLongHash key t =
   let state = U.genericHashInit key
       hasher state' item = U.genericHashUpdate state' (fromPlaintext item :: ByteString)
   in LongDigest $ U.genericHashFinal $ F.foldl' hasher state t
 
-{-|
-Length of a long key
--}
-type LongKeyBytes = U.MaxKeyBytes
+-- | Length of a 'LongKey' as a type-level constant
+type LongKeyBytes = 64
+-- | Long key length as a proxy value
 longKeyBytes :: ByteSize LongKeyBytes
 longKeyBytes = ByteSize
-
+-- | Long key length as a regular value
 longKeySize :: Int
 longKeySize = U.maxKeySize
 
-{-|
-Length of a long digest
--}
-type LongDigestBytes = U.MaxDigestBytes
+-- | Length of a 'LongDigest' as a type-level constant
+type LongDigestBytes = 64
+-- | Long digest length as a proxy value
 longDigestBytes :: ByteSize LongDigestBytes
 longDigestBytes = ByteSize
-
+-- | Long digest length as a regular value
 longDigestSize :: Int
 longDigestSize = U.maxDigestSize

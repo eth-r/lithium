@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeApplications #-}
@@ -6,7 +7,7 @@
 {-# OPTIONS_HADDOCK show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Aead
-Description : AEAD made easy and safe
+Description : Authenticated encryption with associated data
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai
@@ -18,9 +19,11 @@ module Crypto.Lithium.Aead
   , U.newKey
 
   , AeadBox(..)
+
   , aead
   , openAead
 
+  -- * Constants
   , TagBytes
   , tagBytes
   , tagSize
@@ -87,9 +90,10 @@ Size of the tag prepended to the ciphertext; the amount by which a 'aead'
 ciphertext is longer than the corresponding plaintext. Consists of a nonce,
 randomly generated to remove pitfalls for users, and a mac.
 -}
-type TagBytes = U.NonceBytes + U.MacBytes
+type TagBytes = 40
+-- | Size of a tag as a proxy value
 tagBytes :: ByteSize TagBytes
 tagBytes = ByteSize
-
+-- | Size of a tag as a regular value
 tagSize :: Int
 tagSize = U.nonceSize + U.macSize

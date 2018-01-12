@@ -3,7 +3,7 @@
 {-# OPTIONS_HADDOCK show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Hash
-Description : Cryptographic hashing made easy and safe
+Description : Protect secrets with passwords
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai
