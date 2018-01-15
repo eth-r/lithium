@@ -1,5 +1,4 @@
 {-# LANGUAGE ExplicitNamespaces #-}
-{-# OPTIONS_HADDOCK show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Types
 Description : Various type utilities
@@ -18,6 +17,8 @@ module Crypto.Lithium.Types
   , type KnownNats
   , type ByteOp
   , type ByteOps
+  , type Encoder
+  , type Decoder
 
   , N
   , fromN
@@ -46,7 +47,6 @@ module Crypto.Lithium.Types
   , xorN
 
   , Secret
-  , conceal
 
   , Plaintext(..)
 
@@ -59,6 +59,12 @@ module Crypto.Lithium.Types
   , emptySecretN
   , secretLengthN
   , splitSecretN
+
+  , encodeWith
+  , decodeWith
+
+  , encodeSecret
+  , decodeSecret
   ) where
 
-import Crypto.Lithium.Unsafe.Types as U
+import Crypto.Lithium.Unsafe.Types

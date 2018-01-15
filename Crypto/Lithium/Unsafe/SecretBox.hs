@@ -21,17 +21,17 @@ Stability   : experimental
 Portability : unknown
 -}
 module Crypto.Lithium.Unsafe.SecretBox
-  ( Key
+  ( Key(..)
   , asKey
   , fromKey
   , newKey
 
-  , Nonce
+  , Nonce(..)
   , asNonce
   , fromNonce
   , newNonce
 
-  , Mac
+  , Mac(..)
   , asMac
   , fromMac
 
@@ -75,31 +75,34 @@ import Data.ByteArray as B
 import Foundation hiding (splitAt)
 
 
-newtype Key = Key (SecretN KeyBytes) deriving (Show, Eq, NFData)
+newtype Key = Key
+  { unKey :: SecretN KeyBytes } deriving (Show, Eq, NFData)
 
-asKey :: SecretN KeyBytes -> Key
-asKey = Key
+asKey :: Decoder Key
+asKey = decodeSecret Key
 
-fromKey :: Key -> SecretN KeyBytes
-fromKey (Key k) = k
-
-
-newtype Nonce = Nonce (BytesN NonceBytes) deriving (Show, Eq, NFData)
-
-asNonce :: BytesN NonceBytes -> Nonce
-asNonce = Nonce
-
-fromNonce :: Nonce -> BytesN NonceBytes
-fromNonce (Nonce n) = n
+fromKey :: Encoder Key
+fromKey = encodeSecret unKey
 
 
-newtype Mac = Mac (BytesN MacBytes) deriving (Show, Eq, NFData)
+newtype Nonce = Nonce
+  { unNonce :: BytesN NonceBytes } deriving (Show, Eq, NFData)
 
-asMac :: BytesN MacBytes -> Mac
-asMac = Mac
+asNonce :: Decoder Nonce
+asNonce = decodeWith Nonce
 
-fromMac :: Mac -> BytesN MacBytes
-fromMac (Mac m) = m
+fromNonce :: Encoder Nonce
+fromNonce = encodeWith unNonce
+
+
+newtype Mac = Mac
+  { unMac :: BytesN MacBytes } deriving (Show, Eq, NFData)
+
+asMac :: Decoder Mac
+asMac = decodeWith Mac
+
+fromMac :: Encoder Mac
+fromMac = encodeWith unMac
 
 
 {-|
@@ -147,7 +150,7 @@ openSecretBox (Key k) (Nonce n) ciphertext =
 secretBoxPrefix :: (ByteOp m c)
                 => Key -> Nonce -> m -> c
 secretBoxPrefix key nonce message =
-  let nonceBs = B.convert $ fromNonce nonce
+  let nonceBs = fromNonce nonce
       ciphertext = secretBox key nonce message
   in B.append nonceBs ciphertext
 
@@ -194,7 +197,6 @@ secretBoxN :: forall l.
            => Key -> Nonce -> SecretN l -> BytesN (l + MacBytes)
 secretBoxN (Key key) (Nonce nonce) secret = withLithium $
   let len = ByteSize @l
-      -- clen = ByteSize :: ByteSize (l + MacBytes)
       (_e, ciphertext) = unsafePerformIO $
         allocRetN $ \pc ->
         withSecret key $ \pk ->
@@ -207,8 +209,7 @@ openSecretBoxN :: forall l.
                   ( KnownNats l (l + MacBytes) )
                => Key -> Nonce -> BytesN (l + MacBytes) -> Maybe (SecretN l)
 openSecretBoxN (Key k) (Nonce n) ciphertext = withLithium $
-  let -- len = ByteSize :: ByteSize l
-      clen = ByteSize @(l + MacBytes)
+  let clen = ByteSize @(l + MacBytes)
       (e, message) = unsafePerformIO $
         allocSecretN $ \pm ->
         withSecret k $ \pk ->

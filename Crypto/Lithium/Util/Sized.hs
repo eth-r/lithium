@@ -11,6 +11,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_HADDOCK hide, show-extensions #-}
 {-|
@@ -33,6 +34,7 @@ module Crypto.Lithium.Util.Sized
   , allocRetN
   , singletonN
   , replicateN
+  , zerosN
 
   , copyN
   , copyN'
@@ -45,6 +47,7 @@ module Crypto.Lithium.Util.Sized
   , setN
 
   , appendN
+  , appendN3
 
   , takeN'
   , takeN
@@ -57,6 +60,7 @@ module Crypto.Lithium.Util.Sized
 
   , splitN'
   , splitN
+  , splitN3
 
   , xorN
   ) where
@@ -222,6 +226,12 @@ replicateN :: forall a x. (ByteArray a, KnownNat x) => Word8 -> N x a
 replicateN base = N $ B.replicate (asNum (ByteSize @x)) base
 
 {-|
+Create sized byte array of zeros
+-}
+zerosN :: forall a x. (ByteArray a, KnownNat x) => N x a
+zerosN = replicateN 0
+
+{-|
 Allocate a sized byte array, run the initializer on it, and return
 -}
 allocRetN :: forall a x p e. (ByteArray a, KnownNat x)
@@ -302,6 +312,12 @@ appendN :: ByteArray a => N x a -> N y a -> N (x + y) a
 appendN (N a) (N b) = N $ B.append a b
 
 {-|
+Append three sized byte arrays
+-}
+appendN3 :: ByteArray a => N x a -> N y a -> N z a -> N (x + (y + z)) a
+appendN3 as bs cs = appendN as $ appendN bs cs
+
+{-|
 Take 'proxy' number of bytes from the sized byte array
 -}
 takeN' :: (ByteArray a, KnownNat x) => proxy x -> N (x + y) a -> N x a
@@ -358,6 +374,15 @@ splitN :: forall a x y. (ByteArray a, KnownNat x)
        => N (x + y) a -> (N x a, N y a)
 splitN = splitN' (ByteSize @x)
 
+{-|
+Split the byte array to the correct lengths
+-}
+splitN3 :: forall a x y z. (ByteArray a, KnownNats x y, KnownNat (y + z))
+        => N (x + (y + z)) a -> (N x a, N y a, N z a)
+splitN3 as =
+  let (a, bs) = splitN as
+      (b, c) = splitN bs
+  in (a, b, c)
 
 {-|
 Xor two sized byte arrays together

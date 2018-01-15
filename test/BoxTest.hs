@@ -23,10 +23,10 @@ instance Arbitrary Keypair where
   arbitrary = U.seedKeypair <$> arbitrary
 
 instance Arbitrary Nonce where
-  arbitrary = U.asNonce <$> arbitrary
+  arbitrary = U.Nonce <$> arbitrary
 
 instance Arbitrary Seed where
-  arbitrary = U.asSeed <$> arbitrary
+  arbitrary = U.Seed <$> arbitrary
 
 boxSpec :: Spec
 boxSpec = parallel $ do
@@ -44,7 +44,7 @@ boxSpec = parallel $ do
       prop "doesn't decrypt when perturbed" $
         \alice bob (Message msg) p -> do
           ciphertext <- S.box (publicKey bob) (secretKey alice) msg
-          let perturbed = Box $ perturb p $ getCiphertext ciphertext
+          let perturbed = Box $ perturb p $ unBox ciphertext
               decrypted = S.openBox (publicKey alice) (secretKey bob) perturbed
           decrypted `shouldBe` (Nothing :: Maybe ByteString)
 
@@ -127,7 +127,7 @@ boxSpec = parallel $ do
         \alice bob nonce (Message msg) p ->
           let (ciphertext, mac) = U.detachedBox (publicKey bob) (secretKey alice) nonce msg
               decrypted = U.openDetachedBox (publicKey alice) (secretKey bob)
-                nonce (U.asMac $ perturbN p $ U.fromMac mac) (ciphertext :: ByteString)
+                nonce (U.Mac $ perturbN p $ U.unMac mac) (ciphertext :: ByteString)
           in decrypted `shouldBe` (Nothing :: Maybe ByteString)
 
       prop "doesn't decrypt with wrong recipient" $

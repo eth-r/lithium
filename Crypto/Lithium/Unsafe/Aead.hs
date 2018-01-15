@@ -7,7 +7,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# OPTIONS_HADDOCK hide, show-extensions #-}
+{-# OPTIONS_HADDOCK hide #-}
 {-|
 Module      : Crypto.Lithium.Unsafe.Aead
 Description : XChaCha20Poly1305-IETF AEAD
@@ -18,17 +18,17 @@ Stability   : experimental
 Portability : unknown
 -}
 module Crypto.Lithium.Unsafe.Aead
-  ( Key
+  ( Key(..)
   , asKey
   , fromKey
   , newKey
 
-  , Nonce
+  , Nonce(..)
   , asNonce
   , fromNonce
   , newNonce
 
-  , Mac
+  , Mac(..)
   , asMac
   , fromMac
 

@@ -31,6 +31,7 @@ library:
   exposed-modules:
     - Crypto.Lithium.Aead
     - Crypto.Lithium.Box
+    - Crypto.Lithium.Derive
     - Crypto.Lithium.Hash
     - Crypto.Lithium.Password
     - Crypto.Lithium.Random
@@ -41,6 +42,7 @@ library:
     - Crypto.Lithium.Types
     - Crypto.Lithium.Unsafe.Aead
     - Crypto.Lithium.Unsafe.Box
+    - Crypto.Lithium.Unsafe.Derive
     - Crypto.Lithium.Unsafe.Hash
     - Crypto.Lithium.Unsafe.Password
     - Crypto.Lithium.Unsafe.SecretBox
@@ -51,6 +53,7 @@ library:
   other-modules:
     - Crypto.Lithium.Internal.Aead
     - Crypto.Lithium.Internal.Box
+    - Crypto.Lithium.Internal.Derive
     - Crypto.Lithium.Internal.Hash
     - Crypto.Lithium.Internal.Init
     - Crypto.Lithium.Internal.Password

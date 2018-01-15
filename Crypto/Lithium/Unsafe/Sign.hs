@@ -17,15 +17,15 @@ Stability   : experimental
 Portability : unknown
 -}
 module Crypto.Lithium.Unsafe.Sign
-  ( SecretKey
+  ( SecretKey(..)
   , asSecretKey
   , fromSecretKey
 
-  , PublicKey
+  , PublicKey(..)
   , asPublicKey
   , fromPublicKey
 
-  , Seed
+  , Seed(..)
   , asSeed
   , fromSeed
 
@@ -41,7 +41,7 @@ module Crypto.Lithium.Unsafe.Sign
   , toPublicKey
   , toSeed
 
-  , Signature
+  , Signature(..)
   , asSignature
   , fromSignature
 
@@ -51,6 +51,7 @@ module Crypto.Lithium.Unsafe.Sign
   , signDetached
   , verifyDetached
 
+  -- * Constants
   , SecretKeyBytes
   , secretKeyBytes
   , secretKeySize
@@ -85,7 +86,8 @@ import Control.DeepSeq
 Opaque 'sign' secret key type, wrapping the sensitive data in 'ScrubbedBytes' to
 reduce exposure to dangers.
 -}
-newtype SecretKey = S (SecretN SecretKeyBytes) deriving (Show, Eq, NFData)
+newtype SecretKey = SecretKey
+  { unSecretKey :: SecretN SecretKeyBytes } deriving (Show, Eq, NFData)
 
 {-|
 Function for interpreting arbitrary bytes as a 'SecretKey'
@@ -93,8 +95,8 @@ Function for interpreting arbitrary bytes as a 'SecretKey'
 Note that this allows insecure handling of key material. This function is only
 exported in the "Crypto.Lithium.Unsafe.Sign" API.
 -}
-asSecretKey :: SecretN SecretKeyBytes -> SecretKey
-asSecretKey = S
+asSecretKey :: Decoder SecretKey
+asSecretKey = decodeSecret SecretKey
 
 {-|
 Function for converting a 'SecretKey' into an arbitrary byte array
@@ -102,59 +104,61 @@ Function for converting a 'SecretKey' into an arbitrary byte array
 Note that this allows insecure handling of key material. This function is only
 exported in the "Crypto.Lithium.Unsafe.Sign" API.
 -}
-fromSecretKey :: SecretKey -> SecretN SecretKeyBytes
-fromSecretKey (S k) = k
+fromSecretKey :: Encoder SecretKey
+fromSecretKey = encodeSecret unSecretKey
 
 
 {-|
 Opaque 'sign' public key type
 -}
-newtype PublicKey = P (BytesN PublicKeyBytes) deriving (Show, Eq, Ord, NFData, ByteArrayAccess)
+newtype PublicKey = PublicKey
+  { unPublicKey :: BytesN PublicKeyBytes } deriving (Show, Eq, Ord, NFData, ByteArrayAccess)
 
 instance Plaintext PublicKey where
   toPlaintext bs = do
     bsN <- toPlaintext bs
-    return $ asPublicKey bsN
-  fromPlaintext (P k) = fromPlaintext k
-  withPlaintext (P k) = withPlaintext k
+    return $ PublicKey bsN
+  fromPlaintext (PublicKey k) = fromPlaintext k
+  withPlaintext (PublicKey k) = withPlaintext k
   plaintextLength _ = publicKeySize
 
 {-|
 Function for interpreting an arbitrary byte array as a 'PublicKey'
 -}
-asPublicKey :: BytesN PublicKeyBytes -> PublicKey
-asPublicKey = P
+asPublicKey :: Decoder PublicKey
+asPublicKey = decodeWith PublicKey
 
 {-|
 Encode a public key as a byte array
 -}
-fromPublicKey :: PublicKey -> BytesN PublicKeyBytes
-fromPublicKey (P k) = k
+fromPublicKey :: Encoder PublicKey
+fromPublicKey = encodeWith unPublicKey
 
 {-|
 Combined public and secret key
 -}
-data Keypair = KP
+data Keypair = Keypair
   { secretKey :: SecretKey
   , publicKey :: PublicKey
   } deriving (Show, Eq)
 
 instance NFData Keypair where
-  rnf (KP s p) = rnf s `seq` rnf p
+  rnf (Keypair s p) = rnf s `seq` rnf p
 
 asKeypair :: SecretN KeypairBytes -> Keypair
 asKeypair s =
   let (sk, pk) = splitSecretN s
-  in KP (S sk) (P $ revealN pk)
+  in Keypair (SecretKey sk) (PublicKey $ revealN pk)
 
 fromKeypair :: Keypair -> SecretN KeypairBytes
-fromKeypair (KP (S sk) (P pk)) =
+fromKeypair (Keypair (SecretKey sk) (PublicKey pk)) =
   appendN <$> sk <*> concealN pk
 
 {-|
 Seed for deriving keypairs from
 -}
-newtype Seed = Seed (SecretN SeedBytes) deriving (Show, Eq)
+newtype Seed = Seed
+  { unSeed :: SecretN SeedBytes } deriving (Show, Eq)
 instance NFData Seed where
   rnf (Seed s) = rnf s
 
@@ -177,7 +181,7 @@ fromSeed :: Seed -> SecretN SeedBytes
 fromSeed (Seed s) = s
 
 newtype Signature = Signature
-  { fromSignature :: BytesN SignatureBytes } deriving (Show, Eq, Ord)
+  { unSignature :: BytesN SignatureBytes } deriving (Show, Eq, Ord)
 
 instance NFData Signature where
   rnf (Signature s) = rnf s
@@ -189,11 +193,14 @@ instance ByteArrayAccess Signature where
 instance Plaintext Signature where
   toPlaintext bs = do
     bsN <- toPlaintext bs
-    return $ asSignature (bsN :: BytesN SignatureBytes)
-  fromPlaintext = fromPlaintext . fromSignature
+    return $ Signature bsN
+  fromPlaintext = fromPlaintext . unSignature
 
-asSignature :: (ByteArrayAccess b) => N SignatureBytes b -> Signature
-asSignature = Signature . convertN
+asSignature :: Decoder Signature
+asSignature = decodeWith Signature
+
+fromSignature :: Encoder Signature
+fromSignature = encodeWith unSignature
 
 {-|
 Generate new keypair
@@ -204,9 +211,9 @@ newKeypair = withLithium $ do
     allocRetN $ \ppk ->
     allocSecretN $ \psk ->
     sodium_sign_keypair ppk psk
-  let sk' = S sk
-      pk' = P pk
-  return $ KP sk' pk'
+  let sk' = SecretKey sk
+      pk' = PublicKey pk
+  return $ Keypair sk' pk'
 
 {-|
 Derive keypair from seed generated earlier
@@ -218,26 +225,26 @@ seedKeypair (Seed s) = withLithium $
         allocSecretN $ \psk ->
         withSecret s $ \ps ->
         sodium_sign_seed_keypair ppk psk ps
-      sk' = S sk
-      pk' = P pk
-  in (KP sk' pk')
+      sk' = SecretKey sk
+      pk' = PublicKey pk
+  in (Keypair sk' pk')
 
 {-|
 Derive the public key corresponding to a secret key
 -}
 toPublicKey :: SecretKey -> PublicKey
-toPublicKey (S sk) = withLithium $
+toPublicKey (SecretKey sk) = withLithium $
   let (_e, pk) = unsafePerformIO $
         allocRetN $ \ppk ->
         withSecret sk $ \psk ->
         sodium_sign_sk_to_pk ppk psk
-  in (P pk)
+  in (PublicKey pk)
 
 {-|
 Derive the seed a given secret key can be generated from
 -}
 toSeed :: SecretKey -> Seed
-toSeed (S sk) = withLithium $
+toSeed (SecretKey sk) = withLithium $
   let (_e, seed) = unsafePerformIO $
         allocSecretN $ \pSeed ->
         withSecret sk $ \pSk ->
@@ -249,7 +256,7 @@ Sign a message, attaching the signature to it
 -}
 sign :: ( ByteOp m s )
      => SecretKey -> m -> s
-sign (S sk) message = withLithium $
+sign (SecretKey sk) message = withLithium $
   let mlen = B.length message
       mlenC = fromIntegral mlen
       slen = mlen + signatureSize
@@ -269,7 +276,7 @@ Check the signature of a signed message, returning the message if valid
 openSigned :: forall m s.
               ( ByteOp s m )
            => PublicKey -> s -> Maybe m
-openSigned (P pk) signed = withLithium $
+openSigned (PublicKey pk) signed = withLithium $
   let slen = B.length signed
       mlen = slen - signatureSize
       slenC = fromIntegral slen
@@ -287,7 +294,7 @@ Sign a message, generating a 'Signature' separate from the message
 -}
 signDetached :: ( ByteArrayAccess m )
              => SecretKey -> m -> Signature
-signDetached (S k) message = withLithium $
+signDetached (SecretKey k) message = withLithium $
   let mlenC = fromIntegral $ B.length message
       (_e, signature) = unsafePerformIO $
         allocRetN $ \psignature ->
@@ -303,7 +310,7 @@ Verify a detached signature
 -}
 verifyDetached :: ( ByteArrayAccess m )
                => PublicKey -> Signature -> m -> Bool
-verifyDetached (P k) (Signature signature) message = withLithium $
+verifyDetached (PublicKey k) (Signature signature) message = withLithium $
   let mlenC = fromIntegral $ B.length message
       e = unsafePerformIO $
         withByteArray k $ \pkey ->

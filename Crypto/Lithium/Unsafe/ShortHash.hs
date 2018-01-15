@@ -19,11 +19,11 @@ Stability   : experimental
 Portability : unknown
 -}
 module Crypto.Lithium.Unsafe.ShortHash
-  ( Key
+  ( Key(..)
   , asKey
   , fromKey
 
-  , Digest
+  , Digest(..)
   , asDigest
   , fromDigest
 
@@ -31,6 +31,7 @@ module Crypto.Lithium.Unsafe.ShortHash
 
   , shortHash
 
+  -- * Constants
   , DigestBytes
   , digestBytes
   , digestSize

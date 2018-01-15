@@ -23,7 +23,7 @@ instance Arbitrary Keypair where
   arbitrary = U.seedKeypair <$> arbitrary
 
 instance Arbitrary Seed where
-  arbitrary = U.asSeed <$> arbitrary
+  arbitrary = U.Seed <$> arbitrary
 
 signSpec :: Spec
 signSpec = parallel $ do
@@ -41,7 +41,7 @@ signSpec = parallel $ do
       prop "doesn't open when perturbed" $
         \alice (Message msg) p ->
           let signed = S.sign' (secretKey alice) msg
-              perturbed = S.asSigned $ perturb p $ S.fromSigned signed
+              perturbed = S.Signed $ perturb p $ S.unSigned signed
               decrypted = S.openSigned (publicKey alice) perturbed
           in decrypted `shouldBe` (Nothing :: Maybe ByteString)
 
@@ -72,7 +72,7 @@ signSpec = parallel $ do
         \alice (Message msg) p ->
           let signature = S.sign (secretKey alice) msg
               isValid = S.verify (publicKey alice) msg
-                (S.asSignature $ perturbN p $ S.fromSignature signature)
+                (S.signature $ perturbN p $ S.unSignature signature)
           in isValid `shouldBe` False
 
       prop "doesn't verify with wrong public key" $

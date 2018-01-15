@@ -32,8 +32,6 @@ module Crypto.Lithium.Unsafe.Password
   , PasswordProtectableN(..)
   , PasswordProtectable(..)
 
-  , DeriveableN(..)
-
   , Password(..)
 
   , Opslimit
@@ -96,6 +94,8 @@ import Crypto.Lithium.Internal.Util
 import Crypto.Lithium.Internal.Password as I
 
 import Crypto.Lithium.Unsafe.SecretBox as S
+import Crypto.Lithium.Unsafe.Derive (Deriveable(..))
+-- import qualified Crypto.Lithium.Unsafe.Derive as D
 import Crypto.Lithium.Unsafe.Types
 
 import Foundation
@@ -177,14 +177,6 @@ instance PasswordProtectable Bytes
 instance PasswordProtectable ScrubbedBytes
 instance PasswordProtectable ByteString
 
-class DeriveableN b where
-  deriveN :: Password -> Salt -> Policy -> b
-
-instance KnownNat l => DeriveableN (SecretN l) where
-  deriveN = deriveSeed
-
-instance DeriveableN Key where
-  deriveN password salt policy = asKey $ deriveN password salt policy
 
 
 {-|
@@ -280,21 +272,22 @@ sensitivePolicy = Policy opslimitSensitive
                          defaultAlgorithm
 
 
-newtype Salt = Salt (BytesN SaltBytes) deriving (Eq, Ord, Show, NFData)
+newtype Salt = Salt { unSalt :: BytesN SaltBytes } deriving (Eq, Ord, Show, NFData)
 
-asSalt :: BytesN SaltBytes -> Salt
-asSalt = Salt
+asSalt :: Decoder Salt
+asSalt = decodeWith Salt
 
-fromSalt :: Salt -> BytesN SaltBytes
-fromSalt (Salt s) = s
+fromSalt :: Encoder Salt
+fromSalt = encodeWith unSalt
 
 newSalt :: IO Salt
 newSalt = Salt <$> randomBytesN
 
 
-deriveSeed :: forall l. KnownNat l
-           => Password -> Salt -> Policy -> SecretN l
-deriveSeed (Password password) (Salt salt) (Policy (Opslimit ops) (Memlimit mem) (Algorithm alg)) =
+deriveSecretN :: forall l. KnownNat l
+              => Password -> Salt -> Policy -> SecretN l
+deriveSecretN (Password password) (Salt salt)
+              (Policy (Opslimit ops) (Memlimit mem) (Algorithm alg)) =
   withLithium $
   let len = ByteSize :: ByteSize l
       keyLength = asNum len
@@ -313,30 +306,33 @@ deriveSeed (Password password) (Salt salt) (Policy (Opslimit ops) (Memlimit mem)
     -- TODO: make this not suck
     _ -> error "out of memory"
 
+derive :: forall k l. (KnownNat l, Deriveable k l)
+       => Password -> Salt -> Policy -> k
+derive pw salt policy =
+  fromSecretBytes $ deriveSecretN pw salt policy
+
 
 passwordProtect :: ByteArray b => Policy -> Password -> b -> IO (Protected b)
 passwordProtect policy password plaintext =
   withLithium $ do
   salt <- newSalt
   nonce <- newNonce
-  let key = deriveN password salt policy
+  let key = derive password salt policy
   let (ciphertext, mac) =
         secretBoxDetached key nonce plaintext
-  let tag = appendN (fromSalt salt) $
-            appendN (fromNonce nonce) $
-            fromMac mac
+  let tag = appendN (unSalt salt)
+            $ appendN (unNonce nonce)
+            $ unMac mac
   return $ Protected ciphertext (Tag tag) policy
 
 passwordOpen :: ByteArray b => Password -> Protected b -> Maybe b
 passwordOpen password (Protected ciphertext (Tag tag) policy) =
   withLithium $ do
-  let (saltB, remaining) =
-        splitN tag
-  let (nonceB, macB) =
-        splitN remaining
-  let key = deriveN password (asSalt saltB) policy
+  let (saltB, nonceB, macB) =
+        splitN3 tag
+  let key = derive password (Salt saltB) policy
   openSecretBoxDetached
-    key (asNonce nonceB) (asMac macB) ciphertext
+    key (Nonce nonceB) (Mac macB) ciphertext
 
 passwordProtectN :: forall l. (KnownNat l)
                  => Policy -> Password -> SecretN l -> IO (ProtectedN l (SecretN l))
@@ -345,26 +341,24 @@ passwordProtectN policy password secret =
   salt <- newSalt
   nonce <- newNonce
   let key =
-        deriveN password salt policy
+        derive password salt policy
   let (ciphertext, mac) =
         secretBoxDetachedN key nonce secret
-  let tag = appendN (fromSalt salt) $
-            appendN (fromNonce nonce) $
-            fromMac mac
+  let tag = appendN (unSalt salt)
+            $ appendN (unNonce nonce)
+            $ unMac mac
   return $ ProtectedN ciphertext (Tag tag) policy
 
 passwordOpenN :: forall l. (KnownNat l)
               => Password -> ProtectedN l (SecretN l) -> Maybe (SecretN l)
 passwordOpenN password (ProtectedN ciphertext (Tag tag) policy) =
   withLithium $ do
-  let (saltB, remaining) =
-        splitN tag
-  let (nonceB, macB) =
-        splitN remaining
+  let (saltB, nonceB, macB) =
+        splitN3 tag
   let key =
-        deriveN password (asSalt saltB) policy
+        derive password (Salt saltB) policy
   openSecretBoxDetachedN
-    key (asNonce nonceB) (asMac macB) ciphertext
+    key (Nonce nonceB) (Mac macB) ciphertext
 
 
 type SaltBytes = 16

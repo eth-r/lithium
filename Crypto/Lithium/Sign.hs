@@ -1,6 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# OPTIONS_HADDOCK show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Sign
 Description : Ed25519 signatures
@@ -12,8 +11,8 @@ Portability : unknown
 -}
 module Crypto.Lithium.Sign (
   -- * Types
-    U.SecretKey
-  , U.PublicKey
+    U.SecretKey(..)
+  , U.PublicKey(..)
   , U.asPublicKey
   , U.fromPublicKey
 
@@ -29,6 +28,9 @@ module Crypto.Lithium.Sign (
 
   -- * Detached signatures
   , Signature
+  , signature
+  , unSignature
+
   , asSignature
   , fromSignature
 
@@ -36,7 +38,7 @@ module Crypto.Lithium.Sign (
   , verify
 
   -- * Signed messages
-  , Signed
+  , Signed(..)
   , fromSigned
   , asSigned
 
@@ -62,6 +64,7 @@ import Crypto.Lithium.Types
 
 import Control.DeepSeq
 import Data.ByteString
+import Data.ByteArray as B
 
 import Foundation hiding (Signed)
 
@@ -71,14 +74,18 @@ Wrapper for signed messages
 Stores the original type as a phantom type to enable transparent conversion
 -}
 newtype Signed m = Signed
-  { fromSigned :: ByteString -- ^ Get the signed message as a 'ByteString'
+  { unSigned :: ByteString -- ^ Get the signed message as a 'ByteString'
   } deriving (Show, Eq, NFData)
 
 {-|
 Interpret a bytestring as a signed message
 -}
-asSigned :: ByteString -> Signed m
-asSigned = Signed
+asSigned :: Decoder (Signed m)
+asSigned = Just . Signed . B.convert
+
+fromSigned :: Encoder (Signed m)
+fromSigned = B.convert . unSigned
+
 
 {-|
 Sign a plaintext message of type @p@ and turn it into a @'Signed' p@
@@ -104,17 +111,23 @@ Uses a phantom type to store the type of the corresponding message
 -}
 newtype Signature m = Signature U.Signature deriving (Eq, Show, NFData)
 
+signature :: BytesN U.SignatureBytes -> Signature m
+signature bs = Signature $ U.Signature bs
+
+unSignature :: Signature m -> BytesN U.SignatureBytes
+unSignature (Signature s) = U.unSignature s
+
 {-|
 Interpret a byte array as a signature
 -}
-asSignature :: BytesN U.SignatureBytes -> Signature m
-asSignature bs = Signature $ U.asSignature bs
+asSignature :: Decoder (Signature m)
+asSignature = decodeWith signature
 
 {-|
 Encode a signature as a byte array
 -}
-fromSignature :: Signature m -> BytesN U.SignatureBytes
-fromSignature (Signature s) = U.fromSignature s
+fromSignature :: Encoder (Signature m)
+fromSignature = encodeWith unSignature
 
 {-|
 Sign a message of type @m@ to produce a @'Signature' m@
@@ -127,8 +140,8 @@ sign key plaintext = Signature $
 Check a typed signature
 -}
 verify :: ( Plaintext p ) => U.PublicKey -> p -> Signature p -> Bool
-verify key plaintext (Signature signature) =
-  U.verifyDetached key signature (fromPlaintext plaintext :: ByteString)
+verify key plaintext (Signature sig) =
+  U.verifyDetached key sig (fromPlaintext plaintext :: ByteString)
 
 {-
 newtype SignedSecret m = SignedSecret

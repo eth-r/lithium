@@ -15,37 +15,39 @@ Stability   : experimental
 Portability : unknown
 -}
 module Crypto.Lithium.Unsafe.Box
-  ( SecretKey
+  ( SecretKey(..)
   , asSecretKey
   , fromSecretKey
 
-  , Nonce
+  , Nonce(..)
   , asNonce
   , fromNonce
   , newNonce
 
-  , PublicKey
+  , PublicKey(..)
   , asPublicKey
   , fromPublicKey
 
-  , Keypair
+  , Keypair(..)
   , asKeypair
   , fromKeypair
-  , publicKey
-  , secretKey
   , newKeypair
   , seedKeypair
 
-  , Seed
+  , Seed(..)
   , asSeed
   , fromSeed
 
-  , Mac
+  , Mac(..)
   , asMac
   , fromMac
 
   , box
   , openBox
+
+  , boxPrefix
+  , boxRandom
+  , openBoxPrefix
 
   , detachedBox
   , openDetachedBox
@@ -87,7 +89,8 @@ import Data.ByteArray as B
 Opaque 'box' secret key type, wrapping the sensitive data in 'ScrubbedBytes' to
 reduce exposure to dangers.
 -}
-newtype SecretKey = S (SecretN SecretKeyBytes) deriving (Show, Eq, NFData)
+newtype SecretKey = SecretKey
+  { unSecretKey :: SecretN SecretKeyBytes } deriving (Show, Eq, NFData)
 
 {-|
 Function for interpreting arbitrary bytes as a 'SecretKey'
@@ -95,8 +98,8 @@ Function for interpreting arbitrary bytes as a 'SecretKey'
 Note that this allows insecure handling of key material. This function is only
 exported in the "Crypto.Lithium.Unsafe.Box" API.
 -}
-asSecretKey :: SecretN SecretKeyBytes -> SecretKey
-asSecretKey = S
+asSecretKey :: Decoder SecretKey
+asSecretKey = decodeSecret SecretKey
 
 {-|
 Function for converting a 'SecretKey' into an arbitrary byte array
@@ -104,66 +107,76 @@ Function for converting a 'SecretKey' into an arbitrary byte array
 Note that this allows insecure handling of key material. This function is only
 exported in the "Crypto.Lithium.Unsafe.Box" API.
 -}
-fromSecretKey :: SecretKey -> SecretN SecretKeyBytes
-fromSecretKey (S k) = k
+fromSecretKey :: Encoder SecretKey
+fromSecretKey = encodeSecret unSecretKey
 
 
 {-|
 Opaque 'box' public key type
 -}
-newtype PublicKey = P (BytesN PublicKeyBytes) deriving (Show, Eq, NFData)
+newtype PublicKey = PublicKey
+  { unPublicKey :: BytesN PublicKeyBytes } deriving (Show, Eq, NFData)
 
 {-|
 Function for interpreting an arbitrary byte array as a 'PublicKey'
 
 
 -}
-asPublicKey :: BytesN PublicKeyBytes -> PublicKey
-asPublicKey = P
+asPublicKey :: Decoder PublicKey
+asPublicKey = decodeWith PublicKey
 
-fromPublicKey :: PublicKey -> BytesN PublicKeyBytes
-fromPublicKey (P k) = k
+fromPublicKey :: Encoder PublicKey
+fromPublicKey = encodeWith unPublicKey
 
 
-newtype Keypair = KP (SecretKey, PublicKey) deriving (Show, Eq, NFData)
+data Keypair = Keypair
+  { secretKey :: SecretKey
+  , publicKey :: PublicKey } deriving (Show, Eq)
 
-asKeypair :: SecretN (SecretKeyBytes + PublicKeyBytes) -> Keypair
-asKeypair s =
+instance NFData Keypair where
+  rnf (Keypair s p) = rnf s `seq` rnf p
+
+makeKeypair :: SecretN (SecretKeyBytes + PublicKeyBytes) -> Keypair
+makeKeypair s =
   let (sk, pk) = splitSecretN s
-  in KP (S sk, P (revealN pk))
+  in Keypair (SecretKey sk) (PublicKey $ revealN pk)
 
-fromKeypair :: Keypair -> SecretN (SecretKeyBytes + PublicKeyBytes)
-fromKeypair (KP (S sk, P pk)) =
+unKeypair :: Keypair -> SecretN (SecretKeyBytes + PublicKeyBytes)
+unKeypair (Keypair (SecretKey sk) (PublicKey pk)) =
   appendN <$> sk <*> concealN pk
 
-newtype Seed = Seed (SecretN SeedBytes) deriving (Show, Eq, NFData)
+asKeypair :: Decoder Keypair
+asKeypair = decodeSecret makeKeypair
 
-asSeed :: SecretN SeedBytes -> Seed
-asSeed = Seed
+fromKeypair :: Encoder Keypair
+fromKeypair = encodeSecret unKeypair
 
-fromSeed :: Seed -> SecretN SeedBytes
-fromSeed (Seed s) = s
+newtype Seed = Seed
+  { unSeed :: SecretN SeedBytes } deriving (Show, Eq, NFData)
 
-newtype Nonce = Nonce (BytesN NonceBytes) deriving (Show, Eq, NFData)
+asSeed :: Decoder Seed
+asSeed = decodeSecret Seed
 
-asNonce :: BytesN NonceBytes -> Nonce
-asNonce = Nonce
+fromSeed :: Encoder Seed
+fromSeed = encodeSecret unSeed
 
-fromNonce :: Nonce -> BytesN NonceBytes
-fromNonce (Nonce n) = n
+newtype Nonce = Nonce
+  { unNonce :: BytesN NonceBytes } deriving (Show, Eq, NFData)
 
-newtype Mac = Mac (BytesN MacBytes) deriving (Show, Eq, NFData)
+asNonce :: Decoder Nonce
+asNonce = decodeWith Nonce
 
-asMac :: BytesN MacBytes -> Mac
-asMac = Mac
+fromNonce :: Encoder Nonce
+fromNonce = encodeWith unNonce
 
-fromMac :: Mac -> BytesN MacBytes
-fromMac (Mac m) = m
+newtype Mac = Mac
+  { unMac :: BytesN MacBytes } deriving (Show, Eq, NFData)
 
-publicKey :: Keypair -> PublicKey
-publicKey (KP (_s, p)) = p
-secretKey :: Keypair -> SecretKey
-secretKey (KP (s, _p)) = s
+asMac :: Decoder Mac
+asMac = decodeWith Mac
+
+fromMac :: Encoder Mac
+fromMac = encodeWith unMac
 
 newKeypair :: IO Keypair
 newKeypair = withLithium $ do
@@ -171,9 +184,9 @@ newKeypair = withLithium $ do
     allocRetN $ \ppk ->
     allocSecretN $ \psk ->
     sodium_box_keypair ppk psk
-  let sk' = S sk
-      pk' = P pk
-  return $ KP (sk', pk')
+  let sk' = SecretKey sk
+      pk' = PublicKey pk
+  return $ Keypair sk' pk'
 
 seedKeypair :: Seed -> Keypair
 seedKeypair (Seed s) = withLithium $
@@ -182,42 +195,97 @@ seedKeypair (Seed s) = withLithium $
         allocSecretN $ \psk ->
         withSecret s $ \ps ->
         sodium_box_seed_keypair ppk psk ps
-      sk' = S sk
-      pk' = P pk
-  in KP (sk', pk')
+      sk' = SecretKey sk
+      pk' = PublicKey pk
+  in Keypair sk' pk'
 
 newNonce :: IO Nonce
 newNonce = withLithium $ Nonce <$> randomBytesN
 
 box :: ByteOp m c
     => PublicKey -> SecretKey -> Nonce -> m -> c
-box (P pk) (S sk) (Nonce n) message = withLithium $
-  let (_e, ciphertext) = unsafePerformIO $
-        allocRet (B.length message + macSize) $ \pc ->
+box (PublicKey pk) (SecretKey sk) (Nonce n) message =
+  withLithium $
+
+  let mlen = B.length message
+      clen = mlen + macSize
+
+      (_e, ciphertext) = unsafePerformIO $
+        allocRet clen $ \pctext ->
         withByteArray pk $ \ppk ->
         withSecret sk $ \psk ->
-        withByteArray n $ \pn ->
-        withByteArray message $ \pm ->
-        sodium_box_easy pc pm (fromIntegral $ B.length message) pn ppk psk
+        withByteArray n $ \pnonce ->
+        withByteArray message $ \pmessage ->
+        sodium_box_easy pctext
+                        pmessage (fromIntegral mlen)
+                        pnonce ppk psk
   in ciphertext
 
 openBox :: ByteOp c m
         => PublicKey -> SecretKey -> Nonce -> c -> Maybe m
-openBox (P pk) (S sk) (Nonce n) ciphertext = withLithium $
-  let (e, message) = unsafePerformIO $
-        allocRet (B.length ciphertext - macSize) $ \pm ->
+openBox (PublicKey pk) (SecretKey sk) (Nonce n) ciphertext =
+  withLithium $
+
+  let clen = B.length ciphertext
+      mlen = clen - macSize
+
+      (e, message) = unsafePerformIO $
+        allocRet mlen $ \pmessage ->
         withByteArray pk $ \ppk ->
         withSecret sk $ \psk ->
-        withByteArray n $ \pn ->
+        withByteArray n $ \pnonce ->
+        withByteArray ciphertext $ \pctext ->
+        sodium_box_open_easy pmessage
+                             pctext (fromIntegral clen)
+                             pnonce ppk psk
+  in case e of
+    0 -> Just message
+    _ -> Nothing
+
+boxPrefix :: ByteOp m c => PublicKey -> SecretKey -> Nonce -> m -> c
+boxPrefix pk sk nonce message =
+  let nonceBs = fromNonce nonce
+      ciphertext = box pk sk nonce message
+  in B.append nonceBs ciphertext
+
+boxRandom :: ByteOp m c => PublicKey -> SecretKey -> m -> IO c
+boxRandom pk sk message = do
+  nonce <- newNonce
+  return $ boxPrefix pk sk nonce message
+
+openBoxPrefix :: ByteOp c m
+              => PublicKey -> SecretKey -> c -> Maybe m
+openBoxPrefix (PublicKey pk) (SecretKey sk) ciphertext =
+  withLithium $ -- Ensure Sodium is initialized
+
+  let clen = B.length ciphertext - nonceSize
+      -- ^ Length of Box ciphertext:
+      --   ciphertext - nonce
+      mlen = clen - macSize
+      -- ^ Length of original plaintext:
+      --   ciphertext - (nonce + mac)
+
+      (e, message) = unsafePerformIO $
+        allocRet mlen $ \pmessage ->
+        -- Allocate plaintext
+        withByteArray pk $ \ppk ->
+        withSecret sk $ \psk ->
         withByteArray ciphertext $ \pc ->
-        sodium_box_open_easy pm pc (fromIntegral $ B.length ciphertext) pn ppk psk
+        do
+          let pnonce = pc
+              -- ^ Nonce begins at byte 0
+              pctext = plusPtr pc nonceSize
+              -- ^ Mac and encrypted message after nonce
+          sodium_box_open_easy pmessage
+                               pctext (fromIntegral clen)
+                               pnonce ppk psk
   in case e of
     0 -> Just message
     _ -> Nothing
 
 detachedBox :: ByteOp m c
             => PublicKey -> SecretKey -> Nonce -> m -> (c, Mac)
-detachedBox (P pk) (S sk) (Nonce n) message = withLithium $
+detachedBox (PublicKey pk) (SecretKey sk) (Nonce n) message = withLithium $
   let ((_e, mac), ciphertext) = unsafePerformIO $
         allocRet (B.length message) $ \pc ->
         allocRetN $ \pmac ->
@@ -230,7 +298,7 @@ detachedBox (P pk) (S sk) (Nonce n) message = withLithium $
 
 openDetachedBox :: ByteOp c m
                 => PublicKey -> SecretKey -> Nonce -> Mac -> c -> Maybe m
-openDetachedBox (P pk) (S sk) (Nonce n) (Mac mac) ciphertext = withLithium $
+openDetachedBox (PublicKey pk) (SecretKey sk) (Nonce n) (Mac mac) ciphertext = withLithium $
   let (e, message) = unsafePerformIO $
         allocRet (B.length ciphertext) $ \pm ->
         withByteArray mac $ \pmac ->

@@ -18,18 +18,18 @@ Stability   : experimental
 Portability : unknown
 -}
 module Crypto.Lithium.Unsafe.SecretStream
-  ( Key
+  ( Key(..)
   , asKey
   , fromKey
   , newKey
 
-  , Header
+  , Header(..)
   , asHeader
   , fromHeader
 
   , Tag(..)
 
-  , State
+  , State(..)
   , asState
   , fromState
 
@@ -67,10 +67,17 @@ import Data.ByteArray as B
 import Control.DeepSeq
 import Foundation hiding (splitAt)
 
+{-|
+Secretstream message tag
+-}
 data Tag = Message
+         -- ^ Standard tag with no specific meaning
          | Push
+         -- ^ Can be used to eg. denote the end of a chunk of related messages
          | Rekey
+         -- ^ Switch the stream to a new key
          | Final
+         -- ^ End of the stream
          deriving (Show, Eq, Enum)
 
 newtype Key = Key (SecretN KeyBytes) deriving (Show, Eq, NFData)
@@ -81,6 +88,9 @@ asKey = Key
 fromKey :: Key -> SecretN KeyBytes
 fromKey (Key k) = k
 
+{-|
+Header for initializing a secret stream
+-}
 newtype Header = Header (BytesN HeaderBytes) deriving (Show, Eq, NFData, ByteArrayAccess)
 
 asHeader :: BytesN HeaderBytes -> Header
@@ -89,6 +99,14 @@ asHeader = Header
 fromHeader :: Header -> BytesN HeaderBytes
 fromHeader (Header n) = n
 
+{-|
+Secret stream state, containing the necessary information to derive keys and
+encrypt/decrypt+authenticate messages
+
+A single state object should only ever be used once; otherwise leads to nonce
+reuse vulnerabilities. This would be a perfect application for linear types if
+we had them.
+-}
 newtype State = State (SecretN StateBytes) deriving (Show, Eq, NFData)
 
 asState :: SecretN StateBytes -> State
@@ -182,34 +200,45 @@ secretStreamPull (State state) ciphertext aad =
     0 -> Just ((tag, message), State state')
     _ -> Nothing
 
+{-|
+Manually rekey the stream
+-}
 secretStreamRekey :: State -> State
 secretStreamRekey (State state) = withLithium . State . unsafePerformIO $
   copySecretN state sodium_secretstream_rekey
 
+-- | Length of a 'Key' as a type-level constant
 type KeyBytes = 32
+-- | Key length as a proxy value
 keyBytes :: ByteSize KeyBytes
 keyBytes = ByteSize
-
+-- | Key length as a regular value
 keySize :: Int
 keySize = fromIntegral sodium_secretstream_keybytes
 
+-- | Secretstream authentication tag size as a type-level constant
 type MacBytes = 16
+-- | Authentication tag length as a proxy value
 macBytes :: ByteSize MacBytes
 macBytes = ByteSize
-
+-- | Authentication tag length as a regular value
 macSize :: Int
 macSize = fromIntegral sodium_secretstream_macbytes
 
+-- | Length of a 'Header' as a type-level constant
 type HeaderBytes = 24
+-- | Header length as a proxy value
 headerBytes :: ByteSize HeaderBytes
 headerBytes = ByteSize
-
+-- | Header length as a regular value
 headerSize :: Int
 headerSize = fromIntegral sodium_secretstream_headerbytes
 
+-- | Length of a secretstream 'State' as a type-level constant
 type StateBytes = 64
+-- | State length as a proxy value
 stateBytes :: ByteSize StateBytes
 stateBytes = ByteSize
-
+-- | State length as a regular value
 stateSize :: Int
 stateSize = fromIntegral sodium_secretstream_statebytes

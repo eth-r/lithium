@@ -192,9 +192,9 @@ concealN = Conceal . convertN
 {-|
 Try converting an unsized byte array into a sized secret byte array
 -}
-maybeConcealN :: forall a n. (ByteArrayAccess a, KnownNat n) => a -> Maybe (SecretN n)
+maybeConcealN :: forall n. (KnownNat n) => ScrubbedBytes -> Maybe (SecretN n)
 maybeConcealN bs = do
-  n <- maybeToN $ B.convert bs
+  n <- maybeToN bs
   return $ Conceal n
 
 {-|
@@ -202,8 +202,8 @@ Coerce an unsized byte array into a secret sized byte array
 
 Like 'coerceToN', will truncate longer arrays and expand shorter arrays
 -}
-coerceConcealN :: forall a n. (ByteArrayAccess a, KnownNat n) => a -> SecretN n
-coerceConcealN = Conceal . coerceToN . B.convert
+coerceConcealN :: forall n. (KnownNat n) => ScrubbedBytes -> SecretN n
+coerceConcealN = Conceal . coerceToN
 
 {-|
 Split a secret byte array to two secret byte arrays

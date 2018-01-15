@@ -19,11 +19,13 @@ Stability   : experimental
 Portability : unknown
 -}
 module Crypto.Lithium.Unsafe.Hash
-  ( Key
+  ( KeySized
+  , Key(..)
   , asKey
   , fromKey
 
-  , Digest
+  , DigestSized
+  , Digest(..)
   , asDigest
   , fromDigest
 

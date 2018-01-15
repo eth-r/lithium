@@ -3,7 +3,6 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# OPTIONS_HADDOCK show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Box
 Description : Curve25519 public-key encryption
@@ -15,14 +14,12 @@ Portability : unknown
 -}
 module Crypto.Lithium.Box
   ( -- * Types
-    U.Keypair
+    U.Keypair(..)
   , U.newKeypair
-  , U.publicKey
-  , U.secretKey
 
-  , U.SecretKey
+  , U.SecretKey(..)
 
-  , U.PublicKey
+  , U.PublicKey(..)
   , U.asPublicKey
   , U.fromPublicKey
 
@@ -52,16 +49,12 @@ import Crypto.Lithium.Unsafe.Box
   )
 
 import qualified Crypto.Lithium.Unsafe.Box as U
-import Crypto.Lithium.Internal.Random
-import Crypto.Lithium.Internal.Box
 import Crypto.Lithium.Internal.Util
 
-import Data.ByteArray as B
 import Data.ByteString as BS
 
 import Foundation hiding (splitAt)
 import Control.DeepSeq
-
 
 {-|
 Misuse-resistant form of @crypto_box@ from Libsodium
@@ -78,36 +71,9 @@ transparent encryption of any serializable values.
 
 In all relevant respects, 'box' should Just Encrypt.
 -}
-box :: forall p. (Plaintext p)
-    => PublicKey -> SecretKey -> p -> IO (Box p)
-box pk sk message =
-  withLithium $ do -- Ensure Sodium is initialized
-
-  let mlen = plaintextLength message
-      -- ^ Length of message
-      clen = mlen + tagSize
-      -- ^ Length of combined ciphertext to allocate:
-      --   message + (nonce + mac)
-      mlenC = fromIntegral mlen
-      -- ^ Length of message in C type
-
-  (_e, ciphertext) <-
-    allocRet clen $ \pc ->
-    -- Allocate ciphertext, including nonce and mac
-    withByteArray (U.fromPublicKey pk) $ \ppk ->
-    withSecret (U.fromSecretKey sk) $ \psk ->
-    withPlaintext message $ \pmessage ->
-    do
-      let pnonce = pc
-          -- ^ Nonce allocated at byte 0 of ciphertext
-          pctext = plusPtr pc U.nonceSize
-          -- ^ Mac and encrypted message after nonce
-      sodium_randombytes pnonce (asNum U.nonceBytes)
-      -- Initialize with random nonce
-      sodium_box_easy pctext
-                      pmessage mlenC
-                      pnonce ppk psk
-
+box :: Plaintext p => PublicKey -> SecretKey -> p -> IO (Box p)
+box pk sk message = do
+  ciphertext <- U.boxRandom pk sk (fromPlaintext message :: ByteString)
   return $ Box ciphertext
 
 {-|
@@ -121,38 +87,13 @@ With the 'IsPlaintext' typeclass, 'openBox' will automatically convert the
 decrypted byte array to your desired type, including non-trivial transformations
 such as compression if so defined in the instance declaration.
 -}
-openBox :: forall p. (Plaintext p)
-        => PublicKey -> SecretKey -> Box p -> Maybe p
-openBox pk sk (Box ciphertext) =
-  withLithium $ -- Ensure Sodium is initialized
-
-  let clenC = fromIntegral $ B.length ciphertext - U.nonceSize
-      -- ^ Length of SecretBox ciphertext in C type:
-      --   ciphertext - nonce
-      mlen = B.length ciphertext - tagSize
-      -- ^ Length of original plaintext:
-      --   ciphertext - (nonce + mac)
-
-      (e, message) = unsafePerformIO $
-        allocRet mlen $ \pmessage ->
-        -- Allocate plaintext
-        withByteArray (U.fromPublicKey pk) $ \ppk ->
-        withSecret (U.fromSecretKey sk) $ \psk ->
-        withByteArray ciphertext $ \pc ->
-        do
-          let pnonce = pc
-              -- ^ Nonce begins at byte 0
-              pctext = plusPtr pc U.nonceSize
-              -- ^ Mac and encrypted message after nonce
-          sodium_box_open_easy pmessage
-                               pctext clenC
-                               pnonce ppk psk
-  in case e of
-    0 -> toPlaintext (message :: ScrubbedBytes)
-    _ -> Nothing
+openBox :: Plaintext p => PublicKey -> SecretKey -> Box p -> Maybe p
+openBox pk sk (Box ciphertext) = do
+  decrypted <- U.openBoxPrefix pk sk ciphertext
+  toPlaintext (decrypted :: ByteString)
 
 newtype Box t = Box
-  { getCiphertext :: ByteString } deriving (Eq, Show, NFData)
+  { unBox :: ByteString } deriving (Eq, Show, NFData)
 
 {-|
 Size of the tag prepended to the ciphertext; the amount by which a 'box'

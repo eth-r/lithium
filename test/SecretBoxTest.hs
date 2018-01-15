@@ -20,10 +20,10 @@ import Data.ByteString (ByteString)
 import TestUtils
 
 instance Arbitrary Key where
-  arbitrary = U.asKey <$> arbitrary
+  arbitrary = U.Key <$> arbitrary
 
 instance Arbitrary Nonce where
-  arbitrary = U.asNonce <$> arbitrary
+  arbitrary = U.Nonce <$> arbitrary
 
 secretBoxSpec :: Spec
 secretBoxSpec = parallel $ do
@@ -111,7 +111,7 @@ secretBoxSpec = parallel $ do
         \key nonce (Message msg) p ->
           let (ciphertext, mac) = U.secretBoxDetached key nonce msg
               decrypted = U.openSecretBoxDetached key nonce
-                (U.asMac $ perturbN p $ U.fromMac mac)
+                (U.Mac $ perturbN p $ U.unMac mac)
                 (ciphertext :: ByteString)
           in decrypted `shouldBe` (Nothing :: Maybe ByteString)
 
