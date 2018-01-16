@@ -1,0 +1,11 @@
+image: nixos/nix:latest
+
+build:
+  script:
+    - nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
+    - nix-channel --update
+    - apk --update add ca-certificates
+    - nix-env -f "<nixpkgs>" -i bash stack
+    - stack setup
+    - stack build
+    - stack test
