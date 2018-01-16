@@ -27,6 +27,9 @@ module Crypto.Lithium.Unsafe.Derive
   , Context(..)
   , SubkeyId(..)
 
+  , proxyContext
+  , makeContext
+
   , deriveSecretN
 
   , derive
@@ -139,8 +142,8 @@ Symbols longer than 8 bytes are truncated
 
 Symbols shorter than 8 bytes have zeros appended to the value
 -}
-proxyContext :: forall c proxy. KnownSymbol c => proxy c -> Context
-proxyContext proxy = makeContext $ BC.pack $ symbolVal proxy
+proxyContext :: forall c. KnownSymbol c => Context
+proxyContext = makeContext $ BC.pack $ symbolVal $ ContextSymbol @c
 
 {-|
 Turns a given byte array to a context
@@ -188,8 +191,7 @@ context symbol are used for a specific purpose
 derive' :: forall c k l. (KnownNat l, KnownSymbol c, Deriveable k l)
         => MasterKey -> SubkeyId -> Subkey c k
 derive' master subkeyId =
-  let context = proxyContext $ ContextSymbol @c
-  in Subkey $ derive master subkeyId context
+  Subkey $ derive master subkeyId (proxyContext @c)
 
 
 -- | Length of a 'MasterKey' as a type-level constant

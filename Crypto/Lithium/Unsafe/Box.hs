@@ -115,7 +115,11 @@ fromSecretKey = encodeSecret unSecretKey
 Opaque 'box' public key type
 -}
 newtype PublicKey = PublicKey
-  { unPublicKey :: BytesN PublicKeyBytes } deriving (Show, Eq, NFData)
+  { unPublicKey :: BytesN PublicKeyBytes } deriving (Show, Eq, ByteArrayAccess, NFData)
+
+instance Plaintext PublicKey where
+  fromPlaintext = fromPublicKey
+  toPlaintext = asPublicKey
 
 {-|
 Function for interpreting an arbitrary byte array as a 'PublicKey'
@@ -161,7 +165,11 @@ fromSeed :: Encoder Seed
 fromSeed = encodeSecret unSeed
 
 newtype Nonce = Nonce
-  { unNonce :: BytesN NonceBytes } deriving (Show, Eq, NFData)
+  { unNonce :: BytesN NonceBytes } deriving (Show, Eq, ByteArrayAccess, NFData)
+
+instance Plaintext Nonce where
+  fromPlaintext = fromNonce
+  toPlaintext = asNonce
 
 asNonce :: Decoder Nonce
 asNonce = decodeWith Nonce
@@ -170,7 +178,11 @@ fromNonce :: Encoder Nonce
 fromNonce = encodeWith unNonce
 
 newtype Mac = Mac
-  { unMac :: BytesN MacBytes } deriving (Show, Eq, NFData)
+  { unMac :: BytesN MacBytes } deriving (Show, Eq, ByteArrayAccess, NFData)
+
+instance Plaintext Mac where
+  fromPlaintext = fromMac
+  toPlaintext = asMac
 
 asMac :: Decoder Mac
 asMac = decodeWith Mac

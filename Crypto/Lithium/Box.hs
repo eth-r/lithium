@@ -24,6 +24,8 @@ module Crypto.Lithium.Box
   , U.fromPublicKey
 
   , Box(..)
+  , fromBox
+  , asBox
 
   -- * Public-key encryption
   , box
@@ -50,7 +52,9 @@ import Crypto.Lithium.Unsafe.Box
 
 import qualified Crypto.Lithium.Unsafe.Box as U
 import Crypto.Lithium.Internal.Util
+import Crypto.Lithium.Types
 
+import Data.ByteArray as B
 import Data.ByteString as BS
 
 import Foundation hiding (splitAt)
@@ -94,6 +98,12 @@ openBox pk sk (Box ciphertext) = do
 
 newtype Box t = Box
   { unBox :: ByteString } deriving (Eq, Show, NFData)
+
+fromBox :: Encoder (Box t)
+fromBox = B.convert . unBox
+
+asBox :: Decoder (Box t)
+asBox = Just . Box . B.convert
 
 {-|
 Size of the tag prepended to the ciphertext; the amount by which a 'box'

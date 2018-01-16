@@ -53,9 +53,7 @@ module Crypto.Lithium.Types
   , BytesN
 
   , SecretN
-  , concealN
 
-  , maybeConcealN
   , emptySecretN
   , secretLengthN
   , splitSecretN

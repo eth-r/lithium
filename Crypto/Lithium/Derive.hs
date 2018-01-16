@@ -26,6 +26,9 @@ module Crypto.Lithium.Derive
   , U.Context(..)
   , U.SubkeyId(..)
 
+  , U.proxyContext
+  , U.makeContext
+
   , U.deriveSecretN
 
   , U.derive

@@ -122,12 +122,10 @@ class Plaintext p where
   fromPlaintext = B.convert
 
   withPlaintext :: p -> (Ptr p' -> IO e) -> IO e
-  default withPlaintext :: ByteArrayAccess p => p -> (Ptr p' -> IO e) -> IO e
-  withPlaintext = B.withByteArray
+  withPlaintext p = B.withByteArray $ (fromPlaintext p :: ByteString)
 
   plaintextLength :: p -> Int
-  default plaintextLength :: ByteArrayAccess p => p -> Int
-  plaintextLength = B.length
+  plaintextLength p = B.length (fromPlaintext p :: ByteString)
 
 instance Plaintext Bytes
 
