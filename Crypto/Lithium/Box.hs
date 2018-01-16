@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-|
 Module      : Crypto.Lithium.Box
-Description : Curve25519 public-key encryption
+Description : Public-key authenticated encryption
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai
@@ -36,6 +36,8 @@ module Crypto.Lithium.Box
 
   -- * Public-key encryption with precalculation
   , U.SharedKey(..)
+  , U.precalculate
+
   , box'
   , openBox'
 
@@ -69,12 +71,6 @@ module Crypto.Lithium.Box
   , U.sealSize
   ) where
 
-import Crypto.Lithium.Unsafe.Box
-  ( PublicKey
-  , SecretKey
-  , SharedKey
-  )
-
 import qualified Crypto.Lithium.Unsafe.Box as U
 import Crypto.Lithium.Internal.Util
 import Crypto.Lithium.Types
@@ -100,10 +96,9 @@ transparent encryption of any serializable values.
 
 In all relevant respects, 'box' should Just Encrypt.
 -}
-box :: Plaintext p => PublicKey -> SecretKey -> p -> IO (Box p)
-box pk sk message = do
-  ciphertext <- U.boxRandom pk sk (fromPlaintext message :: ByteString)
-  return $ Box ciphertext
+box :: Plaintext p => U.PublicKey -> U.SecretKey -> p -> IO (Box p)
+box pk sk message =
+  Box <$> U.boxRandom pk sk (fromPlaintext message :: ByteString)
 
 {-|
 Misuse-resistant form of @crypto_box_open@ from Libsodium
@@ -116,10 +111,9 @@ With the 'IsPlaintext' typeclass, 'openBox' will automatically convert the
 decrypted byte array to your desired type, including non-trivial transformations
 such as compression if so defined in the instance declaration.
 -}
-openBox :: Plaintext p => PublicKey -> SecretKey -> Box p -> Maybe p
-openBox pk sk (Box ciphertext) = do
-  decrypted <- U.openBoxPrefix pk sk ciphertext
-  toPlaintext (decrypted :: ByteString)
+openBox :: Plaintext p => U.PublicKey -> U.SecretKey -> Box p -> Maybe p
+openBox pk sk (Box ciphertext) =
+  toPlaintext =<< (U.openBoxPrefix pk sk ciphertext :: Maybe ByteString)
 
 newtype Box t = Box
   { unBox :: ByteString } deriving (Eq, Ord, Show, ByteArrayAccess, NFData)
@@ -130,13 +124,13 @@ fromBox = B.convert . unBox
 asBox :: Decoder (Box t)
 asBox = Just . Box . B.convert
 
-box' :: Plaintext p => SharedKey -> p -> IO (Box p)
+box' :: Plaintext p => U.SharedKey -> p -> IO (Box p)
 box' key message = do
   nonce <- U.newNonce
   let ciphertext = U.box' key nonce (fromPlaintext message :: ByteString)
   return $ Box $ B.append (U.fromNonce nonce) ciphertext
 
-openBox' :: Plaintext p => SharedKey -> Box p -> Maybe p
+openBox' :: Plaintext p => U.SharedKey -> Box p -> Maybe p
 openBox' key (Box ciphertext) = do
   let (nonceBs, ctextBs) = B.splitAt U.nonceSize ciphertext
   nonce <- U.asNonce nonceBs
@@ -152,7 +146,7 @@ fromSealedBox = B.convert . unSealedBox
 asSealedBox :: Decoder (SealedBox t)
 asSealedBox = Just . SealedBox . B.convert
 
-sealBox :: Plaintext p => PublicKey -> p -> IO (SealedBox p)
+sealBox :: Plaintext p => U.PublicKey -> p -> IO (SealedBox p)
 sealBox pk message =
   SealedBox <$> U.sealBox pk (fromPlaintext message :: ByteString)
 

@@ -8,7 +8,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DefaultSignatures #-}
-{-# OPTIONS_HADDOCK hide, show-extensions #-}
+{-# OPTIONS_HADDOCK show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Unsafe.Password
 Description : Argon2 password hash
@@ -19,24 +19,39 @@ Stability   : experimental
 Portability : unknown
 -}
 module Crypto.Lithium.Unsafe.Password
-  ( ProtectedN
-  , getCiphertextN
-  , getTagN
-  , getPolicyN
+  ( Salt(..)
+  , asSalt
+  , fromSalt
+  , newSalt
 
-  , Protected
-  , getCiphertext
-  , getTag
-  , getPolicy
+  -- * Password storage
+  , PasswordString(..)
+  , storePassword
+  , verifyPassword
+  , needsRehash
 
-  , PasswordProtectableN(..)
-  , PasswordProtectable(..)
+  -- * Key derivation from passwords
+  , derive
+  , deriveSecretN
 
-  , Password(..)
+  -- * Protecting secrets with passwords
+
+  -- , PasswordProtected(..)
+  -- , passwordProtect
+  -- , passwordOpen
+
+  -- * Hashing policy
+  , Policy(..)
+  , interactivePolicy
+  , moderatePolicy
+  , sensitivePolicy
 
   , Opslimit
   , opslimit
   , getOpslimit
+
+  , minOpslimit
+  , maxOpslimit
 
   , opslimitInteractive
   , opslimitModerate
@@ -45,6 +60,9 @@ module Crypto.Lithium.Unsafe.Password
   , Memlimit
   , memlimit
   , getMemlimit
+
+  , minMemlimit
+  , maxMemlimit
 
   , memlimitInteractive
   , memlimitModerate
@@ -58,36 +76,18 @@ module Crypto.Lithium.Unsafe.Password
 
   , KnownAlgorithm(..)
 
-  , Policy(..)
-
-  , interactivePolicy
-  , moderatePolicy
-  , sensitivePolicy
-
-  , Salt
-  , asSalt
-  , fromSalt
-  , newSalt
-
-  , passwordProtect
-  , passwordOpen
-
-  , passwordProtectN
-  , passwordOpenN
-
+  -- * Constants
   , SaltBytes
   , saltBytes
   , saltSize
 
+  , PasswordStringBytes
+  , passwordStringBytes
+  , passwordStringSize
+
   , TagBytes
   , tagBytes
   , tagSize
-
-  , minOpslimit
-  , maxOpslimit
-
-  , minMemlimit
-  , maxMemlimit
   ) where
 
 import Crypto.Lithium.Internal.Util
@@ -95,16 +95,135 @@ import Crypto.Lithium.Internal.Password as I
 
 import Crypto.Lithium.Unsafe.SecretBox as S
 import Crypto.Lithium.Unsafe.Derive (Deriveable(..))
--- import qualified Crypto.Lithium.Unsafe.Derive as D
 import Crypto.Lithium.Unsafe.Types
 
 import Foundation
 import Control.DeepSeq
 
-import Data.Maybe (fromJust)
+-- import Data.Maybe (fromJust)
 import Data.ByteArray as B
-import Data.ByteString as BS
+-- import Data.ByteString as BS
 
+{-|
+Salt for hashing passwords
+-}
+newtype Salt = Salt
+  { unSalt :: BytesN SaltBytes } deriving (Eq, Ord, Show, ByteArrayAccess, NFData)
+
+asSalt :: Decoder Salt
+asSalt = decodeWith Salt
+
+fromSalt :: Encoder Salt
+fromSalt = encodeWith unSalt
+
+newSalt :: IO Salt
+newSalt = Salt <$> randomBytesN
+
+{-$passwordStorage
+
+Lithium provides a simple API for storing and verifying passwords.
+
+-}
+
+{-|
+Verification string for stored passwords
+-}
+newtype PasswordString = PasswordString
+  { unPasswordString :: BytesN PasswordStringBytes
+  } deriving (Eq, Ord, Show, ByteArrayAccess, NFData)
+
+storePassword :: ByteArrayAccess p => Policy -> p -> IO PasswordString
+storePassword policy pw =
+  withLithium $ do
+
+  let (ops, mem, _alg) = unpackPolicy policy
+      pwlen = fromIntegral $ B.length pw
+
+  (e, pwString) <-
+    allocRetN $ \pstring ->
+    withByteArray pw $ \ppw ->
+    sodium_pwhash_str pstring
+                      ppw pwlen
+                      ops mem
+  case e of
+    0 -> return (PasswordString pwString)
+    _ -> error "failure"
+
+verifyPassword :: ByteArrayAccess p => PasswordString -> p -> Bool
+verifyPassword (PasswordString str) pw =
+  withLithium $
+
+  let pwlen = fromIntegral $ B.length pw
+      e = unsafePerformIO $
+        withByteArray str $ \pstring ->
+        withByteArray pw $ \ppw ->
+        sodium_pwhash_str_verify pstring
+                                 ppw pwlen
+  in case e of
+    0 -> True
+    _ -> False
+
+needsRehash :: Policy -> PasswordString -> Bool
+needsRehash policy (PasswordString str) =
+  withLithium $
+
+  let (ops, mem, _alg) = unpackPolicy policy
+      e = unsafePerformIO $
+        withByteArray str $ \pstring ->
+        sodium_pwhash_str_needs_rehash pstring
+                                       ops mem
+  in case e of
+    0 -> False
+    _ -> True
+
+
+deriveSecretN :: forall l pw.
+                 (KnownNat l, ByteArrayAccess pw)
+              => pw -> Salt -> Policy -> SecretN l
+deriveSecretN password (Salt salt) policy=
+  withLithium $
+  let len = ByteSize :: ByteSize l
+      keyLength = asNum len
+      (ops, mem, alg) = unpackPolicy policy
+      (e, hashed) = unsafePerformIO $
+        allocSecretN $ \pkey ->
+        withByteArray password $ \ppassword ->
+        withByteArray salt $ \psalt ->
+        sodium_pwhash pkey keyLength
+                      ppassword (fromIntegral $ B.length password)
+                      psalt
+                      (fromIntegral ops)
+                      (fromIntegral mem)
+                      (fromIntegral $ fromEnum alg)
+  in case e of
+    0 -> hashed
+    -- TODO: make this not suck
+    _ -> error "out of memory"
+
+derive :: forall k l pw.
+          (KnownNat l, Deriveable k l, ByteArrayAccess pw)
+       => pw -> Salt -> Policy -> k
+derive pw salt policy =
+  fromSecretBytes $ deriveSecretN pw salt policy
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{--
 data ProtectedN (length :: Nat) typeOf =
   ProtectedN { getCiphertextN :: BytesN length
              , getTagN :: Tag
@@ -124,9 +243,6 @@ instance PhantomFunctor Protected where
 
 instance PhantomFunctor (ProtectedN l) where
   pfmap _ (ProtectedN p m l) = ProtectedN p m l
-
-
-newtype Password = Password ScrubbedBytes deriving (Eq, Show, NFData)
 
 
 class PasswordProtectableN t l | t -> l where
@@ -176,7 +292,7 @@ instance PasswordProtectable s => PasswordProtectable (Secret s) where
 instance PasswordProtectable Bytes
 instance PasswordProtectable ScrubbedBytes
 instance PasswordProtectable ByteString
-
+--}
 
 
 {-|
@@ -254,62 +370,54 @@ Wrapper for opslimit, memlimit and algorithm
 data Policy = Policy
   { opsPolicy :: Opslimit
   , memPolicy :: Memlimit
-  , algPolicy :: Algorithm } deriving (Eq, Ord, Show)
+  , algPolicy :: Algorithm
+  } deriving (Eq, Ord, Show)
 
+{-|
+Get raw C types from a policy, suitable for passing to FFI functions
+-}
+unpackPolicy :: Policy -> (CULLong, CSize, CInt)
+unpackPolicy (Policy ops mem alg) =
+  ( fromIntegral (getOpslimit ops)
+  , fromIntegral (getMemlimit mem)
+  , fromIntegral (fromEnum $ getAlgorithm alg)
+  )
+
+{-|
+Fast policy suitable for low-powered devices
+
+Takes approximately 0.1 seconds on a typical desktop computer
+and requires 64 MiB of dedicated RAM
+-}
 interactivePolicy :: Policy
 interactivePolicy = Policy opslimitInteractive
                            memlimitInteractive
                            defaultAlgorithm
 
+{-|
+Moderate policy with a balance of speed and security
+
+Takes approximately 1 second on a typical desktop computer
+and requires 256 MiB of dedicated RAM
+-}
 moderatePolicy :: Policy
 moderatePolicy = Policy opslimitModerate
                         memlimitModerate
                         defaultAlgorithm
 
+{-|
+High-security policy designed to make attacking the password extremely expensive
+
+Takes several seconds on a typical desktop computer
+and requires 1024 MiB of dedicated RAM
+-}
 sensitivePolicy :: Policy
 sensitivePolicy = Policy opslimitSensitive
                          memlimitSensitive
                          defaultAlgorithm
 
 
-newtype Salt = Salt { unSalt :: BytesN SaltBytes } deriving (Eq, Ord, Show, NFData)
-
-asSalt :: Decoder Salt
-asSalt = decodeWith Salt
-
-fromSalt :: Encoder Salt
-fromSalt = encodeWith unSalt
-
-newSalt :: IO Salt
-newSalt = Salt <$> randomBytesN
-
-
-deriveSecretN :: forall l. KnownNat l
-              => Password -> Salt -> Policy -> SecretN l
-deriveSecretN (Password password) (Salt salt)
-              (Policy (Opslimit ops) (Memlimit mem) (Algorithm alg)) =
-  withLithium $
-  let len = ByteSize :: ByteSize l
-      keyLength = asNum len
-      (e, hashed) = unsafePerformIO $
-        allocSecretN $ \pkey ->
-        withByteArray password $ \ppassword ->
-        withByteArray salt $ \psalt ->
-        sodium_pwhash pkey keyLength
-                      ppassword (fromIntegral $ B.length password)
-                      psalt
-                      (fromIntegral ops)
-                      (fromIntegral mem)
-                      (fromIntegral $ fromEnum alg)
-  in case e of
-    0 -> hashed
-    -- TODO: make this not suck
-    _ -> error "out of memory"
-
-derive :: forall k l. (KnownNat l, Deriveable k l)
-       => Password -> Salt -> Policy -> k
-derive pw salt policy =
-  fromSecretBytes $ deriveSecretN pw salt policy
+{--
 
 
 passwordProtect :: ByteArray b => Policy -> Password -> b -> IO (Protected b)
@@ -359,7 +467,7 @@ passwordOpenN password (ProtectedN ciphertext (Tag tag) policy) =
         derive password (Salt saltB) policy
   openSecretBoxDetachedN
     key (Nonce nonceB) (Mac macB) ciphertext
-
+--}
 
 type SaltBytes = 16
 saltBytes :: ByteSize SaltBytes
@@ -387,3 +495,12 @@ minMemlimit = Memlimit $ fromIntegral sodium_pwhash_memlimit_min
 
 maxMemlimit :: Memlimit
 maxMemlimit = Memlimit $ fromIntegral sodium_pwhash_memlimit_max
+
+
+type PasswordStringBytes = 128
+
+passwordStringBytes :: ByteSize PasswordStringBytes
+passwordStringBytes = ByteSize
+
+passwordStringSize :: Int
+passwordStringSize = fromIntegral sodium_pwhash_strbytes

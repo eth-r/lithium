@@ -5,7 +5,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-|
 Module      : Crypto.Lithium.SecretBox
-Description : Symmetrical encryption
+Description : Symmetric-key authenticated encryption
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai

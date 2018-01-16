@@ -10,7 +10,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-|
 Module      : Crypto.Lithium.ShortHash
-Description : Cryptographic hashing made easy
+Description : Fast short hash function with reduced security
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai

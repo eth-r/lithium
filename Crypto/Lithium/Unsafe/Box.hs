@@ -59,6 +59,8 @@ module Crypto.Lithium.Unsafe.Box
   , asSharedKey
   , fromSharedKey
 
+  , precalculate
+
   , box'
   , openBox'
   , detachedBox'
@@ -382,6 +384,17 @@ exported in the "Crypto.Lithium.Unsafe.Box" API.
 fromSharedKey :: Encoder SharedKey
 fromSharedKey = encodeSecret unSharedKey
 
+precalculate :: PublicKey -> SecretKey -> SharedKey
+precalculate (PublicKey pk) (SecretKey sk) =
+  withLithium $
+
+  let (_e, shared) = unsafePerformIO $
+        allocSecretN $ \pshared ->
+        withSecret sk $ \psk ->
+        withByteArray pk $ \ppk ->
+        sodium_box_beforenm pshared
+                            ppk psk
+  in (SharedKey shared)
 
 box' :: ByteOp m c
      => SharedKey -> Nonce -> m -> c

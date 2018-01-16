@@ -5,7 +5,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-|
 Module      : Crypto.Lithium.SecretStream
-Description : Stream of related messages
+Description : Symmetric-key encryption for stream of related messages
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai

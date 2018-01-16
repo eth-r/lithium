@@ -60,6 +60,13 @@ boxSpec = parallel $ do
           let decrypted = S.openBox (publicKey charlie) (secretKey bob) ciphertext
           decrypted `shouldBe` (Nothing :: Maybe ByteString)
 
+    describe "sealBox" $ do
+
+      prop "encrypts" $
+        \alice (Message msg) -> do
+          ciphertext <- S.sealBox (publicKey alice) msg
+          let decrypted = S.openSealedBox alice ciphertext
+          decrypted `shouldBe` Just msg
 
 
   describe "Unsafe.Box" $ do

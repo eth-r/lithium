@@ -3,7 +3,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-|
 Module      : Crypto.Lithium.Hash
-Description : Blake2b hash
+Description : Secure general-purpose hash function
 Copyright   : (c) Promethea Raschke 2018
 License     : public domain
 Maintainer  : eth.raschke@liminal.ai
