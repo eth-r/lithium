@@ -5,7 +5,8 @@ Cryptography that's slightly less likely to blow up on you
 
 **This library is not production-ready and should not be used for purposes
 where cryptographic failure may endanger anyone's life, liberty or pursuit of
-happiness**
+happiness. The API and implementation will both change unpredictably until
+release.**
 
 A libsodium wrapper that aims to make it as hard as possible to shoot yourself
 in the foot, and thus make it as easy as possible to use crypto in your
