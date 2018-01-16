@@ -74,9 +74,9 @@ hashSpec = parallel $ do
 
       prop "is equivalent to hashing the data directly" $
         \chunks ->
-          let streamDigest = U.streamingHash Nothing chunks
-              directDigest = U.genericHash Nothing (BS.concat chunks)
-          in streamDigest `shouldBe` (directDigest :: Digest32)
+          let streamDigest = S.streamingHash Nothing chunks
+              directDigest = S.hash (BS.concat chunks)
+          in S.fromDigest streamDigest `shouldBe` (S.fromDigest directDigest :: ByteString)
 
   describe "byte sizes" $ do
 

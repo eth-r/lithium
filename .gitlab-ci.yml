@@ -14,8 +14,7 @@ build:
 
 coverage:
   script:
-    - nix-env -f "<nixpkgs>" -i curl
-    - stack install codecov-haskell
+    - nix-env -f "<nixpkgs>" -iA haskellPackages.codecov-haskell
     - stack test --coverage
     - codecov-haskell lithium-tests
   allow_failure: true
