@@ -1,3 +1,19 @@
 language: nix
+
+before_install:
+  - nix-env -f "<nixpkgs>" -i bash stack
+
+install:
+  - stack setup
+  - stack build
+
 script:
-  - nix-build
+  - stack test
+
+after_script:
+  - stack haddock
+
+afer_success:
+  - nix-env -f "<nixpkgs>" -iA haskellPackages.codecov-haskell
+  - stack test --coverage
+  - codecov-haskell lithium-tests
