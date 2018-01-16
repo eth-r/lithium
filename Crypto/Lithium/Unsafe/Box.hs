@@ -37,6 +37,7 @@ module Crypto.Lithium.Unsafe.Box
   , Seed(..)
   , asSeed
   , fromSeed
+  , newSeed
 
   , Mac(..)
   , asMac
@@ -51,6 +52,24 @@ module Crypto.Lithium.Unsafe.Box
 
   , detachedBox
   , openDetachedBox
+
+  -- * Shared keys
+
+  , SharedKey(..)
+  , asSharedKey
+  , fromSharedKey
+
+  , box'
+  , openBox'
+  , detachedBox'
+  , openDetachedBox'
+
+  -- * Sealed boxes
+
+  , sealBox
+  , openSealedBox
+
+  -- * Constants
 
   , PublicKeyBytes
   , publicKeyBytes
@@ -75,6 +94,10 @@ module Crypto.Lithium.Unsafe.Box
   , SharedKeyBytes
   , sharedKeyBytes
   , sharedKeySize
+
+  , SealBytes
+  , sealBytes
+  , sealSize
   ) where
 
 import Crypto.Lithium.Internal.Box
@@ -163,6 +186,9 @@ asSeed = decodeSecret Seed
 
 fromSeed :: Encoder Seed
 fromSeed = encodeSecret unSeed
+
+newSeed :: IO Seed
+newSeed = Seed <$> randomSecretN
 
 newtype Nonce = Nonce
   { unNonce :: BytesN NonceBytes } deriving (Show, Eq, ByteArrayAccess, NFData)
@@ -267,33 +293,37 @@ boxRandom pk sk message = do
 
 openBoxPrefix :: ByteOp c m
               => PublicKey -> SecretKey -> c -> Maybe m
-openBoxPrefix (PublicKey pk) (SecretKey sk) ciphertext =
-  withLithium $ -- Ensure Sodium is initialized
+openBoxPrefix pk sk ciphertext =
+  withLithium $ do -- Ensure Sodium is initialized
+  let (nonceBs, ctextBs) = B.splitAt nonceSize (B.convert ciphertext :: ScrubbedBytes)
+  nonce <- asNonce nonceBs
+  openBox pk sk nonce ctextBs
 
-  let clen = B.length ciphertext - nonceSize
-      -- ^ Length of Box ciphertext:
-      --   ciphertext - nonce
-      mlen = clen - macSize
-      -- ^ Length of original plaintext:
-      --   ciphertext - (nonce + mac)
 
-      (e, message) = unsafePerformIO $
-        allocRet mlen $ \pmessage ->
-        -- Allocate plaintext
-        withByteArray pk $ \ppk ->
-        withSecret sk $ \psk ->
-        withByteArray ciphertext $ \pc ->
-        do
-          let pnonce = pc
-              -- ^ Nonce begins at byte 0
-              pctext = plusPtr pc nonceSize
-              -- ^ Mac and encrypted message after nonce
-          sodium_box_open_easy pmessage
-                               pctext (fromIntegral clen)
-                               pnonce ppk psk
-  in case e of
-    0 -> Just message
-    _ -> Nothing
+  -- let clen = B.length ciphertext - nonceSize
+  --     -- ^ Length of Box ciphertext:
+  --     --   ciphertext - nonce
+  --     mlen = clen - macSize
+  --     -- ^ Length of original plaintext:
+  --     --   ciphertext - (nonce + mac)
+
+  --     (e, message) = unsafePerformIO $
+  --       allocRet mlen $ \pmessage ->
+  --       -- Allocate plaintext
+  --       withByteArray pk $ \ppk ->
+  --       withSecret sk $ \psk ->
+  --       withByteArray ciphertext $ \pc ->
+  --       do
+  --         let pnonce = pc
+  --             -- ^ Nonce begins at byte 0
+  --             pctext = plusPtr pc nonceSize
+  --             -- ^ Mac and encrypted message after nonce
+  --         sodium_box_open_easy pmessage
+  --                              pctext (fromIntegral clen)
+  --                              pnonce ppk psk
+  -- in case e of
+  --   0 -> Just message
+  --   _ -> Nothing
 
 detachedBox :: ByteOp m c
             => PublicKey -> SecretKey -> Nonce -> m -> (c, Mac)
@@ -322,6 +352,146 @@ openDetachedBox (PublicKey pk) (SecretKey sk) (Nonce n) (Mac mac) ciphertext = w
   in case e of
     0 -> Just message
     _ -> Nothing
+
+{-
+
+-}
+
+{-|
+Opaque 'box' shared key type, wrapping the sensitive data in 'ScrubbedBytes' to
+reduce exposure to dangers.
+-}
+newtype SharedKey = SharedKey
+  { unSharedKey :: SecretN SharedKeyBytes } deriving (Show, Eq, NFData)
+
+{-|
+Function for interpreting arbitrary bytes as a 'SharedKey'
+
+Note that this allows insecure handling of key material. This function is only
+exported in the "Crypto.Lithium.Unsafe.Box" API.
+-}
+asSharedKey :: Decoder SharedKey
+asSharedKey = decodeSecret SharedKey
+
+{-|
+Function for converting a 'SharedKey' into an arbitrary byte array
+
+Note that this allows insecure handling of key material. This function is only
+exported in the "Crypto.Lithium.Unsafe.Box" API.
+-}
+fromSharedKey :: Encoder SharedKey
+fromSharedKey = encodeSecret unSharedKey
+
+
+box' :: ByteOp m c
+     => SharedKey -> Nonce -> m -> c
+box' (SharedKey k) (Nonce n) message =
+  withLithium $
+
+  let mlen = B.length message
+      clen = mlen + macSize
+
+      (_e, ciphertext) = unsafePerformIO $
+        allocRet clen $ \pctext ->
+        withSecret k $ \pkey ->
+        withByteArray n $ \pnonce ->
+        withByteArray message $ \pmessage ->
+        sodium_box_easy_afternm pctext
+                                pmessage (fromIntegral mlen)
+                                pnonce pkey
+  in ciphertext
+
+openBox' :: ByteOp c m
+        => SharedKey -> Nonce -> c -> Maybe m
+openBox' (SharedKey k) (Nonce n) ciphertext =
+  withLithium $
+
+  let clen = B.length ciphertext
+      mlen = clen - macSize
+
+      (e, message) = unsafePerformIO $
+        allocRet mlen $ \pmessage ->
+        withSecret k $ \pkey ->
+        withByteArray n $ \pnonce ->
+        withByteArray ciphertext $ \pctext ->
+        sodium_box_open_easy_afternm pmessage
+                                     pctext (fromIntegral clen)
+                                     pnonce pkey
+  in case e of
+    0 -> Just message
+    _ -> Nothing
+
+detachedBox' :: ByteOp m c
+            => SharedKey -> Nonce -> m -> (c, Mac)
+detachedBox' (SharedKey k) (Nonce n) message = withLithium $
+  let ((_e, mac), ciphertext) = unsafePerformIO $
+        allocRet (B.length message) $ \pc ->
+        allocRetN $ \pmac ->
+        withSecret k $ \pkey ->
+        withByteArray n $ \pn ->
+        withByteArray message $ \pm ->
+        sodium_box_detached_afternm pc pmac
+                                    pm (fromIntegral $ B.length message)
+                                    pn pkey
+  in (ciphertext, Mac mac)
+
+openDetachedBox' :: ByteOp c m
+                 => SharedKey -> Nonce -> Mac -> c -> Maybe m
+openDetachedBox' (SharedKey k) (Nonce n) (Mac mac) ciphertext = withLithium $
+  let (e, message) = unsafePerformIO $
+        allocRet (B.length ciphertext) $ \pm ->
+        withByteArray mac $ \pmac ->
+        withSecret k $ \pkey ->
+        withByteArray n $ \pn ->
+        withByteArray ciphertext $ \pc ->
+        sodium_box_open_detached_afternm pm pc pmac
+                                         (fromIntegral $ B.length ciphertext)
+                                         pn pkey
+  in case e of
+    0 -> Just message
+    _ -> Nothing
+
+
+
+
+sealBox :: ByteOp m c => PublicKey -> m -> IO c
+sealBox (PublicKey pk) message =
+  withLithium $ do
+
+  let mlen = B.length message
+      clen = mlen + sealSize
+
+  (_e, ciphertext) <-
+        allocRet clen $ \pctext ->
+        withByteArray pk $ \ppk ->
+        withByteArray message $ \pmessage ->
+        sodium_box_seal pctext
+                        pmessage (fromIntegral mlen)
+                        ppk
+  return ciphertext
+
+openSealedBox :: ByteOp c m => Keypair -> c -> Maybe m
+openSealedBox (Keypair (SecretKey sk) (PublicKey pk)) ciphertext =
+  withLithium $
+
+  let clen = B.length ciphertext
+      mlen = clen - sealSize
+
+      (e, message) = unsafePerformIO $
+        allocRet mlen $ \pmessage ->
+        withByteArray pk $ \ppk ->
+        withSecret sk $ \psk ->
+        withByteArray ciphertext $ \pctext ->
+        sodium_box_seal_open pmessage
+                             pctext (fromIntegral clen)
+                             ppk psk
+  in case e of
+    0 -> Just message
+    _ -> Nothing
+
+
+
+
 
 type PublicKeyBytes = 32
 publicKeyBytes :: ByteSize PublicKeyBytes
@@ -364,3 +534,10 @@ sharedKeyBytes = ByteSize
 
 sharedKeySize :: Int
 sharedKeySize = fromIntegral sodium_box_beforenmbytes
+
+type SealBytes = 48
+sealBytes :: ByteSize SealBytes
+sealBytes = ByteSize
+
+sealSize :: Int
+sealSize = fromIntegral sodium_box_sealbytes

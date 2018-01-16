@@ -23,13 +23,29 @@ module Crypto.Lithium.Box
   , U.asPublicKey
   , U.fromPublicKey
 
+  , U.Seed(..)
+  , U.newSeed
+
+  -- * Public-key encryption
   , Box(..)
   , fromBox
   , asBox
 
-  -- * Public-key encryption
   , box
   , openBox
+
+  -- * Public-key encryption with precalculation
+  , U.SharedKey(..)
+  , box'
+  , openBox'
+
+  -- * Anonymous public-key encryption
+  , SealedBox(..)
+  , fromSealedBox
+  , asSealedBox
+
+  , sealBox
+  , openSealedBox
 
   -- * Constants
   , TagBytes
@@ -43,11 +59,20 @@ module Crypto.Lithium.Box
   , U.SecretKeyBytes
   , U.secretKeyBytes
   , U.secretKeySize
+
+  , U.SharedKeyBytes
+  , U.sharedKeyBytes
+  , U.sharedKeySize
+
+  , U.SealBytes
+  , U.sealBytes
+  , U.sealSize
   ) where
 
 import Crypto.Lithium.Unsafe.Box
   ( PublicKey
   , SecretKey
+  , SharedKey
   )
 
 import qualified Crypto.Lithium.Unsafe.Box as U
@@ -97,13 +122,43 @@ openBox pk sk (Box ciphertext) = do
   toPlaintext (decrypted :: ByteString)
 
 newtype Box t = Box
-  { unBox :: ByteString } deriving (Eq, Show, NFData)
+  { unBox :: ByteString } deriving (Eq, Ord, Show, ByteArrayAccess, NFData)
 
 fromBox :: Encoder (Box t)
 fromBox = B.convert . unBox
 
 asBox :: Decoder (Box t)
 asBox = Just . Box . B.convert
+
+box' :: Plaintext p => SharedKey -> p -> IO (Box p)
+box' key message = do
+  nonce <- U.newNonce
+  let ciphertext = U.box' key nonce (fromPlaintext message :: ByteString)
+  return $ Box $ B.append (U.fromNonce nonce) ciphertext
+
+openBox' :: Plaintext p => SharedKey -> Box p -> Maybe p
+openBox' key (Box ciphertext) = do
+  let (nonceBs, ctextBs) = B.splitAt U.nonceSize ciphertext
+  nonce <- U.asNonce nonceBs
+  decrypted <- U.openBox' key nonce ctextBs
+  toPlaintext (decrypted :: ByteString)
+
+newtype SealedBox t = SealedBox
+  { unSealedBox :: ByteString } deriving (Eq, Ord, Show, ByteArrayAccess, NFData)
+
+fromSealedBox :: Encoder (SealedBox t)
+fromSealedBox = B.convert . unSealedBox
+
+asSealedBox :: Decoder (SealedBox t)
+asSealedBox = Just . SealedBox . B.convert
+
+sealBox :: Plaintext p => PublicKey -> p -> IO (SealedBox p)
+sealBox pk message =
+  SealedBox <$> U.sealBox pk (fromPlaintext message :: ByteString)
+
+openSealedBox :: Plaintext p => U.Keypair -> SealedBox p -> Maybe p
+openSealedBox keys (SealedBox ciphertext) =
+  toPlaintext =<< (U.openSealedBox keys ciphertext :: Maybe ByteString)
 
 {-|
 Size of the tag prepended to the ciphertext; the amount by which a 'box'

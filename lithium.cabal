@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3a00ee61454d59e93cf094f870ce73d72b3164f1bfac790d2fec53a675cd5486
+-- hash: 61a2d5cf75781eaa07f10f2b45230e2f5d66c423943bedcf9956c14108777e50
 
 name:           lithium
 version:        0.0.0
@@ -43,6 +43,7 @@ library
     , memory
   exposed-modules:
       Crypto.Lithium.Aead
+      Crypto.Lithium.Auth
       Crypto.Lithium.Box
       Crypto.Lithium.Derive
       Crypto.Lithium.Hash
@@ -54,9 +55,11 @@ library
       Crypto.Lithium.Sign
       Crypto.Lithium.Types
       Crypto.Lithium.Unsafe.Aead
+      Crypto.Lithium.Unsafe.Auth
       Crypto.Lithium.Unsafe.Box
       Crypto.Lithium.Unsafe.Derive
       Crypto.Lithium.Unsafe.Hash
+      Crypto.Lithium.Unsafe.OnetimeAuth
       Crypto.Lithium.Unsafe.Password
       Crypto.Lithium.Unsafe.SecretBox
       Crypto.Lithium.Unsafe.SecretStream
@@ -65,10 +68,12 @@ library
       Crypto.Lithium.Unsafe.Types
   other-modules:
       Crypto.Lithium.Internal.Aead
+      Crypto.Lithium.Internal.Auth
       Crypto.Lithium.Internal.Box
       Crypto.Lithium.Internal.Derive
       Crypto.Lithium.Internal.Hash
       Crypto.Lithium.Internal.Init
+      Crypto.Lithium.Internal.OnetimeAuth
       Crypto.Lithium.Internal.Password
       Crypto.Lithium.Internal.Random
       Crypto.Lithium.Internal.SecretBox
@@ -103,6 +108,7 @@ test-suite lithium-tests
     , tasty-hspec
   other-modules:
       AeadTest
+      AuthTest
       BoxTest
       HashTest
       PasswordTest

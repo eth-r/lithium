@@ -13,6 +13,7 @@ import Test.Tasty.Hspec
 import Test.Hspec.QuickCheck
 
 import AeadTest
+import AuthTest
 import BoxTest
 import HashTest
 import PasswordTest
@@ -27,6 +28,7 @@ main = do
 spec :: Spec
 spec = parallel $ modifyMaxSuccess (const 1000) $ do
   describe "Aead" aeadSpec
+  describe "Auth" authSpec
   describe "Box" boxSpec
   describe "Hash" hashSpec
   describe "Password" passwordSpec

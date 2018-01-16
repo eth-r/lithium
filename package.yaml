@@ -30,6 +30,7 @@ library:
     - -Werror
   exposed-modules:
     - Crypto.Lithium.Aead
+    - Crypto.Lithium.Auth
     - Crypto.Lithium.Box
     - Crypto.Lithium.Derive
     - Crypto.Lithium.Hash
@@ -41,9 +42,11 @@ library:
     - Crypto.Lithium.Sign
     - Crypto.Lithium.Types
     - Crypto.Lithium.Unsafe.Aead
+    - Crypto.Lithium.Unsafe.Auth
     - Crypto.Lithium.Unsafe.Box
     - Crypto.Lithium.Unsafe.Derive
     - Crypto.Lithium.Unsafe.Hash
+    - Crypto.Lithium.Unsafe.OnetimeAuth
     - Crypto.Lithium.Unsafe.Password
     - Crypto.Lithium.Unsafe.SecretBox
     - Crypto.Lithium.Unsafe.SecretStream
@@ -52,10 +55,12 @@ library:
     - Crypto.Lithium.Unsafe.Types
   other-modules:
     - Crypto.Lithium.Internal.Aead
+    - Crypto.Lithium.Internal.Auth
     - Crypto.Lithium.Internal.Box
     - Crypto.Lithium.Internal.Derive
     - Crypto.Lithium.Internal.Hash
     - Crypto.Lithium.Internal.Init
+    - Crypto.Lithium.Internal.OnetimeAuth
     - Crypto.Lithium.Internal.Password
     - Crypto.Lithium.Internal.Random
     - Crypto.Lithium.Internal.SecretBox
@@ -105,6 +110,7 @@ tests:
     main: Main.hs
     other-modules:
       - AeadTest
+      - AuthTest
       - BoxTest
       - HashTest
       - PasswordTest
