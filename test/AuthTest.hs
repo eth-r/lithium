@@ -62,7 +62,7 @@ authSpec = parallel $ do
               perturbed = perturb p msg
           in S.verify key mac perturbed `shouldBe` False
 
-  describe "OnetimeAuth" $ do
+  describe "Unsafe.OnetimeAuth" $ do
 
     describe "auth" $ do
 
