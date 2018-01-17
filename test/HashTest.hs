@@ -2,10 +2,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeApplications #-}
 module HashTest (hashSpec) where
 
 import Test.Hspec.QuickCheck
-import Test.Tasty.Hspec
+import Test.Hspec
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Property
 
@@ -17,14 +18,15 @@ import Crypto.Lithium.Unsafe.Types
 import Control.Monad.IO.Class
 import Data.ByteArray (Bytes)
 import qualified Data.ByteArray as B
-import Data.ByteString.Base16
+import qualified Data.ByteArray.Encoding as B
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import Data.Maybe (fromJust)
 
 import TestUtils
 
 instance (Between MinKeyBytes MaxKeyBytes l) => Arbitrary (U.Key l) where
-  arbitrary = asKey <$> arbitrary
+  arbitrary = U.Key <$> arbitrary
 
 type Digest32 = U.Digest 32
 type Key32 = U.Key 32
@@ -94,10 +96,10 @@ hashSpec = parallel $ do
 
 
 from16 :: ByteString -> Bytes
-from16 = B.convert . fst . decode
+from16 = either (B.convert . const @ByteString "") id . B.convertFromBase B.Base16
 
 testKey :: LongKey
-testKey = U.asKey $ concealN $ coerceToN $ from16 "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
+testKey = fromJust . U.asKey @LongKeyBytes $ from16 "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
 
 testIn0, testIn1, testIn2, testIn3, testIn4 :: Bytes
 testOut0, testOut1, testOut2, testOut3, testOut4 :: Bytes

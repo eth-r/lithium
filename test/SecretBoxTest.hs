@@ -2,7 +2,7 @@
 module SecretBoxTest (secretBoxSpec) where
 
 import Test.Hspec.QuickCheck
-import Test.Tasty.Hspec
+import Test.Hspec
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Property
 
@@ -14,7 +14,6 @@ import Crypto.Lithium.Unsafe.Types
 import Control.Monad.IO.Class
 import Data.ByteArray (Bytes)
 import qualified Data.ByteArray as B
-import Data.ByteString.Base16
 import Data.ByteString (ByteString)
 
 import TestUtils

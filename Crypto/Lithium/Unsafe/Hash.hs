@@ -79,29 +79,31 @@ import Data.Foldable as F
 
 type KeySized n = Between MinKeyBytes MaxKeyBytes n
 
-newtype Key (n :: Nat) = Key (SecretN n) deriving (Eq, Show, NFData)
+newtype Key (n :: Nat) = Key
+  { unKey :: SecretN n } deriving (Eq, Show, NFData)
 
-asKey :: KeySized n => SecretN n -> Key n
-asKey = Key
+asKey :: KeySized n => Decoder (Key n)
+asKey = decodeSecret Key
 
-fromKey :: KeySized n => Key n -> SecretN n
-fromKey (Key k) = k
+fromKey :: KeySized n => Encoder (Key n)
+fromKey = encodeSecret unKey
 
 type DigestSized n = Between MinDigestBytes MaxDigestBytes n
 
-newtype Digest (n :: Nat) = Digest (BytesN n) deriving (Eq, Show, Ord, NFData, ByteArrayAccess)
+newtype Digest (n :: Nat) = Digest
+  { unDigest :: BytesN n } deriving (Eq, Show, Ord, NFData, ByteArrayAccess)
 
 instance DigestSized n => Plaintext (Digest n) where
-  toPlaintext bs = asDigest <$> toPlaintext bs
+  toPlaintext bs = Digest <$> toPlaintext bs
   fromPlaintext (Digest d) = fromPlaintext d
   withPlaintext (Digest d) = withPlaintext d
   plaintextLength (Digest d) = plaintextLength d
 
-asDigest :: DigestSized n => BytesN n -> Digest n
-asDigest = Digest
+asDigest :: DigestSized n => Decoder (Digest n)
+asDigest = decodeWith Digest
 
-fromDigest :: DigestSized n => Digest n -> BytesN n
-fromDigest (Digest d) = d
+fromDigest :: DigestSized n => Encoder (Digest n)
+fromDigest = encodeWith unDigest
 
 
 newKey :: KeySized n => IO (Key n)

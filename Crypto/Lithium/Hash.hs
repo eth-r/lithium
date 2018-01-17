@@ -75,6 +75,12 @@ Digest resulting from 'genericHash' or 'keyedHash'
 newtype Digest t = Digest (U.Digest U.DigestBytes)
   deriving (Eq, Ord, Show, NFData, ByteArrayAccess)
 
+makeDigest :: BytesN U.DigestBytes -> (Digest t)
+makeDigest = Digest . U.Digest
+
+unDigest :: (Digest t) -> BytesN U.DigestBytes
+unDigest (Digest d) = U.unDigest d
+
 instance Plaintext t => Plaintext (Digest t) where
   toPlaintext = asDigest
   fromPlaintext = fromDigest
@@ -84,16 +90,14 @@ instance Plaintext t => Plaintext (Digest t) where
 {-|
 Interpret an arbitrary byte array as a 'Digest'
 -}
-asDigest :: (Plaintext p, ByteArrayAccess b)
-         => b -> Maybe (Digest p)
-asDigest b = Digest . U.asDigest <$> maybeToN (B.convert b :: Bytes)
+asDigest :: Decoder (Digest t)
+asDigest = decodeWith makeDigest
 
 {-|
 Convert a digest into an arbitrary byte array
 -}
-fromDigest :: ByteArray b => Digest p -> b
-fromDigest (Digest d) =
-  convert $ fromN $ U.fromDigest d
+fromDigest :: Encoder (Digest t)
+fromDigest = encodeWith unDigest
 
 {-|
 Opaque 'keyedLongHash' key
@@ -106,6 +110,12 @@ type LongKey = U.Key LongKeyBytes
 newtype LongDigest t = LongDigest (U.Digest LongDigestBytes)
   deriving (Eq, Ord, Show, NFData, ByteArrayAccess)
 
+makeLongDigest :: BytesN LongDigestBytes -> (LongDigest t)
+makeLongDigest = LongDigest . U.Digest
+
+unLongDigest :: (LongDigest t) -> BytesN LongDigestBytes
+unLongDigest (LongDigest d) = U.unDigest d
+
 instance Plaintext t => Plaintext (LongDigest t) where
   toPlaintext = asLongDigest
   fromPlaintext = fromLongDigest
@@ -113,18 +123,16 @@ instance Plaintext t => Plaintext (LongDigest t) where
   plaintextLength _ = longDigestSize
 
 {-|
-Interpret an arbitrary byte array as a long digest
+Interpret an arbitrary byte array as a 'LongDigest'
 -}
-asLongDigest :: (Plaintext t, ByteArrayAccess b)
-             => b -> Maybe (LongDigest t)
-asLongDigest b = LongDigest . U.asDigest <$> maybeToN (B.convert b :: Bytes)
+asLongDigest :: Decoder (LongDigest t)
+asLongDigest = decodeWith makeLongDigest
 
 {-|
-Convert a long digest into an arbitrary byte array
+Convert a longDigest into an arbitrary byte array
 -}
-fromLongDigest :: ByteArray b => LongDigest t -> b
-fromLongDigest (LongDigest d) =
-  convert $ fromN $ U.fromDigest d
+fromLongDigest :: Encoder (LongDigest t)
+fromLongDigest = encodeWith unLongDigest
 
 {-|
 Hash any data using unkeyed Blake2b-256

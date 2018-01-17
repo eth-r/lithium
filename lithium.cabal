@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 61a2d5cf75781eaa07f10f2b45230e2f5d66c423943bedcf9956c14108777e50
+-- hash: 7bdf452eb47a149d9e8743e07b389b466e3c24f8dbaea3798e6db11c8fa269a8
 
 name:           lithium
 version:        0.0.0
@@ -99,13 +99,10 @@ test-suite lithium-tests
   build-depends:
       QuickCheck
     , base
-    , base16-bytestring
     , bytestring
     , hspec
     , lithium
     , memory
-    , tasty
-    , tasty-hspec
   other-modules:
       AeadTest
       AuthTest
