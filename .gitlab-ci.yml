@@ -20,7 +20,7 @@ build:
 coverage:
   stage: coverage
   script:
-    - nix-env -f "<nixpkgs>" -iA git
+    - nix-env -f "<nixpkgs>" -iA git xz make
     - git clone https://github.com/jlengyel/codecov-haskell
     - cd codecov-haskell
     - stack install .
