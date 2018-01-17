@@ -1,5 +1,9 @@
 image: nixos/nix:latest
 
+stages:
+  - build
+  - coverage
+
 before_script:
   - nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
   - nix-channel --update
@@ -15,8 +19,8 @@ build:
 coverage:
   script:
     - nix-env -f "<nixpkgs>" -iA git
-    - git clone https://github.com/jlengyel/codecov-haskell ../codecov-haskell
-    - stack install ../codecov-haskell
+    - git clone https://github.com/jlengyel/codecov-haskell
+    - stack install ./codecov-haskell
     - stack test --coverage
     - codecov-haskell lithium-tests
   allow_failure: true
