@@ -42,6 +42,11 @@ nix:
 # will not be run. This is useful for tweaking upstream packages.
 packages:
   - .
+  - location:
+      git: https://github.com/eth-r/sized-memory.git
+      commit: 420e858f971974d65f26794dc0ac93315f494f71
+    extra-dep: true
+
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 # extra-deps: []

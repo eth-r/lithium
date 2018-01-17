@@ -44,6 +44,7 @@ import Crypto.Lithium.Internal.Util
 import Crypto.Lithium.Unsafe.Types
 
 import Data.ByteArray as B
+import Data.ByteArray.Sized as Sized
 
 import Control.DeepSeq
 import Foundation hiding (splitAt)
@@ -87,7 +88,7 @@ auth (Key key) message =
       -- ^ Length of message
 
       (_e, mac) = unsafePerformIO $
-        allocRetN $ \pmac ->
+        Sized.allocRet $ \pmac ->
         withSecret key $ \pkey ->
         withByteArray message $ \pmessage ->
         sodium_auth pmac

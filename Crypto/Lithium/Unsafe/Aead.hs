@@ -66,6 +66,7 @@ import Crypto.Lithium.Internal.Util
 import Crypto.Lithium.Unsafe.Types
 
 import Data.ByteArray as B
+import Data.ByteArray.Sized as Sized
 
 import Control.DeepSeq
 import Foundation hiding (splitAt)
@@ -121,7 +122,7 @@ aead (Key key) (Nonce nonce) message aad =
       -- ^ Length of associated data
 
       (_e, ciphertext) = unsafePerformIO $
-        allocRet clen $ \pc ->
+        B.allocRet clen $ \pc ->
         withSecret key $ \pk ->
         withByteArray nonce $ \pn ->
         withByteArray message $ \pm ->
@@ -138,7 +139,7 @@ openAead (Key k) (Nonce n) ciphertext aad =
   withLithium $ -- Ensure Sodium is initialized
 
   let (e, message) = unsafePerformIO $
-        allocRet (B.length ciphertext - macSize) $ \pm ->
+        B.allocRet (B.length ciphertext - macSize) $ \pm ->
         withSecret k $ \pk ->
         withByteArray n $ \pn ->
         withByteArray ciphertext $ \pc ->
@@ -176,7 +177,7 @@ openAeadPrefix (Key key) ciphertext aad =
       -- ^ Length of associated data
 
       (e, message) = unsafePerformIO $
-        allocRet mlen $ \pmessage ->
+        B.allocRet mlen $ \pmessage ->
         withSecret key $ \pkey ->
         withByteArray ciphertext $ \pc ->
         withByteArray aad $ \padata ->
@@ -208,11 +209,11 @@ aeadN :: forall l a.
 aeadN (Key key) (Nonce nonce) secret aad =
   withLithium $
 
-  let mlen = asNum (ByteSize @l)
+  let mlen = theNat @l
       alen = B.length aad
 
       (_e, ciphertext) = unsafePerformIO $
-        allocRetN $ \pc ->
+        Sized.allocRet $ \pc ->
         withSecret key $ \pk ->
         withByteArray nonce $ \pn ->
         withSecret secret $ \pm ->
@@ -230,7 +231,7 @@ openAeadN :: forall l a.
 openAeadN (Key k) (Nonce n) ciphertext aad =
   withLithium $
 
-  let mlen = asNum (ByteSize @l)
+  let mlen = theNat @l
       clen = mlen + macSize
       alen = B.length aad
       (e, message) = unsafePerformIO $
@@ -257,8 +258,8 @@ aeadDetached (Key key) (Nonce nonce) message aad =
       alen = B.length aad
 
       ((_e, mac), ciphertext) = unsafePerformIO $
-        allocRet (B.length message) $ \pc ->
-        allocRetN $ \pmac ->
+        B.allocRet (B.length message) $ \pc ->
+        Sized.allocRet $ \pmac ->
         withSecret key $ \pk ->
         withByteArray nonce $ \pn ->
         withByteArray message $ \pm ->
@@ -278,7 +279,7 @@ openAeadDetached (Key key) (Nonce nonce) (Mac mac) ciphertext aad =
       alen = B.length aad
 
       (e, message) = unsafePerformIO $
-        allocRet clen $ \pm ->
+        B.allocRet clen $ \pm ->
         withSecret key $ \pk ->
         withByteArray nonce $ \pn ->
         withByteArray mac $ \pmac ->
@@ -297,12 +298,12 @@ aeadDetachedN :: forall l a. (KnownNat l, ByteArrayAccess a)
 aeadDetachedN (Key key) (Nonce nonce) message aad =
   withLithium $
 
-  let mlen = asNum (ByteSize @l)
+  let mlen = theNat @l
       alen = B.length aad
 
       ((_e, mac), ciphertext) = unsafePerformIO $
-        allocRetN $ \pc ->
-        allocRetN $ \pmac ->
+        Sized.allocRet $ \pc ->
+        Sized.allocRet $ \pmac ->
         withSecret key $ \pk ->
         withByteArray nonce $ \pn ->
         withSecret message $ \pm ->
@@ -318,7 +319,7 @@ openAeadDetachedN :: forall l a. (KnownNat l, ByteArrayAccess a)
 openAeadDetachedN (Key key) (Nonce nonce) (Mac mac) ciphertext aad =
   withLithium $
 
-  let clen = asNum (ByteSize @l)
+  let clen = theNat @l
       alen = B.length aad
 
       (e, message) = unsafePerformIO $

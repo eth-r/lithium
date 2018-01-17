@@ -32,6 +32,7 @@ module Crypto.Lithium.SecretBox
 import Crypto.Lithium.Unsafe.SecretBox (Key)
 import qualified Crypto.Lithium.Unsafe.SecretBox as U
 import Crypto.Lithium.Internal.Util
+import Data.ByteArray.Sized
 import Foundation
 import Control.DeepSeq
 import Data.ByteString as BS

@@ -54,8 +54,7 @@ import Control.DeepSeq
 import Data.ByteArray as B
 import Data.ByteString as BS
 
-import Crypto.Lithium.Util.Nat
-import Crypto.Lithium.Util.Sized
+import Data.ByteArray.Sized as Sized
 
 
 {-|
@@ -133,35 +132,35 @@ instance Plaintext ScrubbedBytes
 
 instance Plaintext ByteString
 
-instance (ByteArray b, Plaintext b, KnownNat n) => Plaintext (N n b) where
-  toPlaintext = maybeToN . B.convert
-  fromPlaintext = B.convert . fromN
+instance (ByteArray b, Plaintext b, KnownNat n) => Plaintext (Sized n b) where
+  toPlaintext = Sized.asSized . B.convert
+  fromPlaintext = B.convert . unSized
 
 
-type SecretN (n :: Nat) = Secret (N n ScrubbedBytes)
-type BytesN (n :: Nat) = N n Bytes
+type SecretN (n :: Nat) = Secret (Sized n ScrubbedBytes)
+type BytesN (n :: Nat) = Sized n Bytes
 
 
 {-|
 Empty secret sized byte array
 -}
 emptySecretN :: SecretN 0
-emptySecretN = Conceal $ emptyN
+emptySecretN = Conceal $ Sized.empty
 
 {-|
 Allocate and initialize a sized secret byte array
 -}
 allocSecretN :: forall l p e. KnownNat l => (Ptr p -> IO e) -> IO (e, SecretN l)
 allocSecretN f = do
-  (e, ns) <- allocRetN f
+  (e, ns) <- Sized.allocRet f
   return (e, Conceal ns)
 
 copySecretN :: KnownNat l => SecretN l -> (Ptr p -> IO ()) -> IO (SecretN l)
-copySecretN (Conceal bs) f = Conceal <$> copyN bs f
+copySecretN (Conceal bs) f = Conceal <$> Sized.copy bs f
 
 copySecretN' :: KnownNat l => SecretN l -> (Ptr p -> IO e) -> IO (e, SecretN l)
 copySecretN' (Conceal bs) f = do
-  (e, bs') <- copyN' bs f
+  (e, bs') <- Sized.copy' bs f
   return (e, Conceal bs')
 
 secretLengthN :: forall l. SecretN l -> Int
@@ -178,35 +177,35 @@ withSecret (Conceal bs) = withByteArray bs
 Expose the contents of a secret byte array
 -}
 -- NOTE: exposes contents
-revealN :: forall ba n. (ByteArray ba, KnownNat n) => SecretN n -> N n ba
-revealN = convertN . reveal
+revealN :: forall ba n. (ByteArray ba, KnownNat n) => SecretN n -> Sized n ba
+revealN = Sized.convert . reveal
 
 {-|
 Make a sized byte array secret
 -}
-concealN :: forall ba n. (ByteArrayAccess ba, KnownNat n) => N n ba -> SecretN n
-concealN = Conceal . convertN
+concealN :: forall ba n. (ByteArrayAccess ba, KnownNat n) => Sized n ba -> SecretN n
+concealN = Conceal . Sized.convert
 
 {-|
 Try converting an unsized byte array into a sized secret byte array
 -}
 maybeConcealN :: forall n. (KnownNat n) => ScrubbedBytes -> Maybe (SecretN n)
 maybeConcealN bs = do
-  n <- maybeToN bs
+  n <- Sized.asSized bs
   return $ Conceal n
 
 {-|
 Coerce an unsized byte array into a secret sized byte array
 
-Like 'coerceToN', will truncate longer arrays and expand shorter arrays
+Like 'Sized.coerce', will truncate longer arrays and expand shorter arrays
 -}
 coerceConcealN :: forall n. (KnownNat n) => ScrubbedBytes -> SecretN n
-coerceConcealN = Conceal . coerceToN
+coerceConcealN = Conceal . Sized.coerce
 
 {-|
 Split a secret byte array to two secret byte arrays
 -}
 splitSecretN :: KnownNats x y => SecretN (x + y) -> (SecretN x, SecretN y)
 splitSecretN (Conceal a) =
-  let (b, c) = splitN a
+  let (b, c) = Sized.split a
   in (Conceal b, Conceal c)

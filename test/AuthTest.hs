@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeApplications #-}
 module AuthTest (authSpec) where
 
 import Test.Hspec.QuickCheck
@@ -18,6 +19,7 @@ import Crypto.Lithium.Unsafe.Types
 import Control.Monad.IO.Class
 import Data.ByteArray (Bytes)
 import qualified Data.ByteArray as B
+import qualified Data.ByteArray.Encoding as B
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 
@@ -28,6 +30,15 @@ instance Arbitrary U.Key where
 
 instance Arbitrary O.Key where
   arbitrary = O.Key <$> arbitrary
+
+newtype OKey = OKey O.Key deriving (Eq)
+instance Arbitrary OKey where
+  arbitrary = OKey <$> arbitrary
+instance Show OKey where
+  show (OKey k) = (++) "Key"
+    $ show @ByteString
+    $ B.convertToBase B.Base16
+    $ O.fromKey @ByteString k
 
 authSpec :: Spec
 authSpec = parallel $ do
@@ -66,7 +77,7 @@ authSpec = parallel $ do
     describe "auth" $ do
 
       prop "authes different messages to different digests" $
-        \(Message msg1) (Message msg2) key -> msg1 /= msg2 ==>
+        \(Message msg1) (Message msg2) (OKey key) -> msg1 /= msg2 ==>
         O.auth key msg1 `shouldNotBe` O.auth key msg2
 
       prop "authes the same message with different keys to different digests" $
@@ -102,9 +113,9 @@ authSpec = parallel $ do
   describe "byte sizes" $ do
 
     it "has matching type-level and value-level sizes" $ do
-      asNum S.macBytes `shouldBe` (S.macSize :: Int)
-      asNum S.keyBytes `shouldBe` (S.keySize :: Int)
+      (fromIntegral . natVal) S.macBytes `shouldBe` S.macSize
+      (fromIntegral . natVal) S.keyBytes `shouldBe` S.keySize
 
-      asNum O.macBytes `shouldBe` (O.macSize :: Int)
-      asNum O.keyBytes `shouldBe` (O.keySize :: Int)
-      asNum O.stateBytes `shouldBe` (O.stateSize :: Int)
+      (fromIntegral . natVal) O.macBytes `shouldBe` O.macSize
+      (fromIntegral . natVal) O.keyBytes `shouldBe` O.keySize
+      (fromIntegral . natVal) O.stateBytes `shouldBe` O.stateSize

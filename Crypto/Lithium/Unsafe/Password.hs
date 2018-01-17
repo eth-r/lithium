@@ -8,6 +8,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_HADDOCK show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Unsafe.Password
@@ -96,6 +97,7 @@ import Crypto.Lithium.Internal.Password as I
 import Crypto.Lithium.Unsafe.SecretBox as S
 import Crypto.Lithium.Unsafe.Derive (Deriveable(..))
 import Crypto.Lithium.Unsafe.Types
+import Data.ByteArray.Sized as Sized
 
 import Foundation
 import Control.DeepSeq
@@ -140,7 +142,7 @@ storePassword policy pw =
       pwlen = fromIntegral $ B.length pw
 
   (e, pwString) <-
-    allocRetN $ \pstring ->
+    Sized.allocRet $ \pstring ->
     withByteArray pw $ \ppw ->
     sodium_pwhash_str pstring
                       ppw pwlen
@@ -182,8 +184,7 @@ deriveSecretN :: forall l pw.
               => pw -> Salt -> Policy -> SecretN l
 deriveSecretN password (Salt salt) policy=
   withLithium $
-  let len = ByteSize :: ByteSize l
-      keyLength = asNum len
+  let keyLength = theNat @l
       (ops, mem, alg) = unpackPolicy policy
       (e, hashed) = unsafePerformIO $
         allocSecretN $ \pkey ->

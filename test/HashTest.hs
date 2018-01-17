@@ -83,16 +83,16 @@ hashSpec = parallel $ do
   describe "byte sizes" $ do
 
     it "has matching type-level and value-level sizes" $ do
-      asNum digestBytes `shouldBe` (digestSize :: Int)
-      asNum longDigestBytes `shouldBe` (longDigestSize :: Int)
-      asNum keyBytes `shouldBe` (keySize :: Int)
-      asNum longKeyBytes `shouldBe` (longKeySize :: Int)
+      (fromIntegral . natVal) digestBytes `shouldBe` digestSize
+      (fromIntegral . natVal) longDigestBytes `shouldBe` longDigestSize
+      (fromIntegral . natVal) keyBytes `shouldBe` keySize
+      (fromIntegral . natVal) longKeyBytes `shouldBe` longKeySize
 
-      asNum minDigestBytes `shouldBe` (minDigestSize :: Int)
-      asNum maxDigestBytes `shouldBe` (maxDigestSize :: Int)
-      asNum minKeyBytes `shouldBe` (minKeySize :: Int)
-      asNum maxKeyBytes `shouldBe` (maxKeySize :: Int)
-      asNum stateBytes `shouldBe` (stateSize :: Int)
+      (fromIntegral . natVal) minDigestBytes `shouldBe` minDigestSize
+      (fromIntegral . natVal) maxDigestBytes `shouldBe` maxDigestSize
+      (fromIntegral . natVal) minKeyBytes `shouldBe` minKeySize
+      (fromIntegral . natVal) maxKeyBytes `shouldBe` maxKeySize
+      (fromIntegral . natVal) stateBytes `shouldBe` stateSize
 
 
 from16 :: ByteString -> Bytes

@@ -48,6 +48,7 @@ import Crypto.Lithium.Unsafe.Types
 import Foundation
 import Control.DeepSeq
 import Data.ByteArray as B
+import Data.ByteArray.Sized as Sized
 
 newtype Key = Key (SecretN KeyBytes) deriving (Eq, Show, NFData)
 
@@ -85,7 +86,7 @@ shortHash :: ByteArrayAccess a => Key -> a -> Digest
 shortHash (Key key) m = withLithium $
   let mlen = fromIntegral $ B.length m
       (_e, result) = unsafePerformIO $
-        allocRetN $ \pdigest ->
+        Sized.allocRet $ \pdigest ->
         withByteArray m $ \pmessage ->
         withSecret key $ \pkey ->
         sodium_shorthash pdigest

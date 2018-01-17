@@ -75,6 +75,7 @@ import Crypto.Lithium.Unsafe.Types
 import Foundation hiding (Foldable)
 import Control.DeepSeq
 import Data.ByteArray as B
+import Data.ByteArray.Sized as Sized
 import Data.Foldable as F
 
 type KeySized n = Between MinKeyBytes MaxKeyBytes n
@@ -119,10 +120,10 @@ genericHash :: forall a n k.
             => Maybe (Key k) -> a -> Digest n
 genericHash key m = withLithium $
   let mlen = fromIntegral $ B.length m
-      hashLength = asNum (ByteSize @n)
+      hashLength = theNat @n
 
       (_e, result) = unsafePerformIO $
-        allocRetN $ \pdigest ->
+        Sized.allocRet $ \pdigest ->
         withByteArray m $ \pmessage ->
         case key of
           Nothing ->
@@ -140,9 +141,9 @@ newtype State (n :: Nat) = State (BytesN StateBytes) deriving (Eq, Ord, ByteArra
 
 genericHashInit :: forall n k. DigestSized n => Maybe (Key k) -> State n
 genericHashInit key = withLithium $
-  let outLen = asNum (ByteSize @n)
+  let outLen = theNat @n
       (_e, result) = unsafePerformIO $
-        allocRetN $ \pstate ->
+        Sized.allocRet $ \pstate ->
         case key of
           Nothing ->
             sodium_generichash_init pstate
@@ -159,17 +160,17 @@ genericHashUpdate :: forall n a. ByteArrayAccess a => State n -> a -> State n
 genericHashUpdate (State state) chunk = withLithium $
   let clen = fromIntegral $ B.length chunk
       state' = unsafePerformIO $
-        copyN state $ \pstate' ->
+        Sized.copy state $ \pstate' ->
         withByteArray chunk $ \pchunk ->
         sodium_generichash_update pstate' pchunk clen >> return ()
   in (State state')
 
 genericHashFinal :: forall n. DigestSized n => State n -> Digest n
 genericHashFinal (State state) = withLithium $
-  let outLen = asNum (ByteSize @n)
+  let outLen = theNat @n
       (_state', digest) = unsafePerformIO $
-        allocRetN $ \pdigest ->
-        copyN state $ \pstate' ->
+        Sized.allocRet $ \pdigest ->
+        Sized.copy state $ \pstate' ->
         sodium_generichash_final pstate' pdigest outLen >> return ()
   in (Digest digest)
 

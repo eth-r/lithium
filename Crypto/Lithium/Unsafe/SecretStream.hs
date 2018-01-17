@@ -63,6 +63,7 @@ import Crypto.Lithium.Internal.Util
 import Crypto.Lithium.Unsafe.Types
 
 import Data.ByteArray as B
+import Data.ByteArray.Sized as Sized
 
 import Control.DeepSeq
 import Foundation hiding (splitAt)
@@ -131,7 +132,7 @@ secretStreamInitPush (Key key) = withLithium $ do
 
   ((_, header), state) <-
         allocSecretN $ \pstate ->
-        allocRetN $ \pheader ->
+        Sized.allocRet $ \pheader ->
         withSecret key $ \pkey ->
         sodium_secretstream_init_push pstate
                                       pheader
@@ -149,7 +150,7 @@ secretStreamPush (State state) tag message aad =
       ctag = fromIntegral $ fromEnum tag
 
       (state', ciphertext) = unsafePerformIO $
-        allocRet clen $ \pctext ->
+        B.allocRet clen $ \pctext ->
         copySecretN state $ \pstate' ->
         withByteArray message $ \pmessage ->
         withByteArray aad $ \paad ->
@@ -186,8 +187,8 @@ secretStreamPull (State state) ciphertext aad =
 
       (((e, tag'), message), state') = unsafePerformIO $
         copySecretN' state $ \pstate ->
-        allocRet mlen $ \pmessage ->
-        allocRet 1 $ \ptag ->
+        B.allocRet mlen $ \pmessage ->
+        B.allocRet 1 $ \ptag ->
         withByteArray ciphertext $ \pctext ->
         withByteArray aad $ \paad ->
         sodium_secretstream_pull pstate

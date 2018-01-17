@@ -71,6 +71,7 @@ import Crypto.Lithium.Unsafe.Types
 
 import Control.DeepSeq
 import Data.ByteArray as B
+import Data.ByteArray.Sized as Sized
 
 import Foundation hiding (splitAt)
 
@@ -124,7 +125,7 @@ secretBox (Key key) (Nonce nonce) message =
   withLithium $
 
   let (_e, ciphertext) = unsafePerformIO $
-        allocRet (B.length message + macSize) $ \pc ->
+        B.allocRet (B.length message + macSize) $ \pc ->
         withSecret key $ \pk ->
         withByteArray nonce $ \pn ->
         withByteArray message $ \pm ->
@@ -137,7 +138,7 @@ openSecretBox (Key k) (Nonce n) ciphertext =
   withLithium $
 
   let (e, message) = unsafePerformIO $
-        allocRet (B.length ciphertext - macSize) $ \pm ->
+        B.allocRet (B.length ciphertext - macSize) $ \pm ->
         withSecret k $ \pk ->
         withByteArray n $ \pn ->
         withByteArray ciphertext $ \pc ->
@@ -175,7 +176,7 @@ openSecretBoxPrefix (Key key) ciphertext =
       --   ciphertext - (nonce + mac)
 
       (e, message) = unsafePerformIO $
-        allocRet mlen $ \pmessage ->
+        B.allocRet mlen $ \pmessage ->
         -- Allocate plaintext
         withSecret key $ \pkey ->
         withByteArray ciphertext $ \pc ->
@@ -196,26 +197,24 @@ secretBoxN :: forall l.
               ( KnownNats l (l + MacBytes) )
            => Key -> Nonce -> SecretN l -> BytesN (l + MacBytes)
 secretBoxN (Key key) (Nonce nonce) secret = withLithium $
-  let len = ByteSize @l
-      (_e, ciphertext) = unsafePerformIO $
-        allocRetN $ \pc ->
+  let (_e, ciphertext) = unsafePerformIO $
+        Sized.allocRet $ \pc ->
         withSecret key $ \pk ->
         withByteArray nonce $ \pn ->
         withSecret secret $ \pm ->
-        sodium_secretbox_easy pc pm (asNum len) pn pk
+        sodium_secretbox_easy pc pm (theNat @l) pn pk
   in ciphertext
 
 openSecretBoxN :: forall l.
                   ( KnownNats l (l + MacBytes) )
                => Key -> Nonce -> BytesN (l + MacBytes) -> Maybe (SecretN l)
 openSecretBoxN (Key k) (Nonce n) ciphertext = withLithium $
-  let clen = ByteSize @(l + MacBytes)
-      (e, message) = unsafePerformIO $
+  let (e, message) = unsafePerformIO $
         allocSecretN $ \pm ->
         withSecret k $ \pk ->
         withByteArray n $ \pn ->
         withByteArray ciphertext $ \pc ->
-        sodium_secretbox_open_easy pm pc (asNum clen) pn pk
+        sodium_secretbox_open_easy pm pc (theNat @(l + MacBytes)) pn pk
   in case e of
     0 -> Just message
     _ -> Nothing
@@ -225,8 +224,8 @@ secretBoxDetached :: (ByteOp m c)
                   => Key -> Nonce -> m -> (c, Mac)
 secretBoxDetached (Key key) (Nonce nonce) message = withLithium $
   let ((_e, mac), ciphertext) = unsafePerformIO $
-        allocRet (B.length message) $ \pc ->
-        allocRetN $ \pmac ->
+        B.allocRet (B.length message) $ \pc ->
+        Sized.allocRet $ \pmac ->
         withSecret key $ \pk ->
         withByteArray nonce $ \pn ->
         withByteArray message $ \pm ->
@@ -237,7 +236,7 @@ openSecretBoxDetached :: (ByteOp c m)
                       => Key -> Nonce -> Mac -> c -> Maybe m
 openSecretBoxDetached (Key key) (Nonce nonce) (Mac mac) ciphertext = withLithium $
   let (e, message) = unsafePerformIO $
-        allocRet (B.length ciphertext) $ \pm ->
+        B.allocRet (B.length ciphertext) $ \pm ->
         withSecret key $ \pk ->
         withByteArray nonce $ \pn ->
         withByteArray mac $ \pmac ->
@@ -248,29 +247,27 @@ openSecretBoxDetached (Key key) (Nonce nonce) (Mac mac) ciphertext = withLithium
     _ -> Nothing
 
 secretBoxDetachedN :: forall l b. (KnownNat l, ByteArray b)
-                   => Key -> Nonce -> SecretN l -> (N l b, Mac)
+                   => Key -> Nonce -> SecretN l -> (Sized l b, Mac)
 secretBoxDetachedN (Key key) (Nonce nonce) message = withLithium $
-  let len = ByteSize @l
-      ((_e, mac), ciphertext) = unsafePerformIO $
-        allocRetN $ \pc ->
-        allocRetN $ \pmac ->
+  let ((_e, mac), ciphertext) = unsafePerformIO $
+        Sized.allocRet $ \pc ->
+        Sized.allocRet $ \pmac ->
         withSecret key $ \pk ->
         withByteArray nonce $ \pn ->
         withSecret message $ \pm ->
-        sodium_secretbox_detached pc pmac pm (asNum len) pn pk
+        sodium_secretbox_detached pc pmac pm (theNat @l) pn pk
   in (ciphertext, Mac mac)
 
 openSecretBoxDetachedN :: forall l b. (KnownNat l, ByteArray b)
-                       => Key -> Nonce -> Mac -> N l b -> Maybe (SecretN l)
+                       => Key -> Nonce -> Mac -> Sized l b -> Maybe (SecretN l)
 openSecretBoxDetachedN (Key key) (Nonce nonce) (Mac mac) ciphertext = withLithium $
-  let len = ByteSize @l
-      (e, message) = unsafePerformIO $
+  let (e, message) = unsafePerformIO $
         allocSecretN $ \pm ->
         withSecret key $ \pk ->
         withByteArray nonce $ \pn ->
         withByteArray mac $ \pmac ->
         withByteArray ciphertext $ \pc ->
-        sodium_secretbox_open_detached pm pc pmac (asNum len) pn pk
+        sodium_secretbox_open_detached pm pc pmac (theNat @l) pn pk
   in case e of
     0 -> Just message
     _ -> Nothing
@@ -294,7 +291,7 @@ deterministicSecretBox :: ByteOp m c => Key -> m -> c
 deterministicSecretBox (Key key) message =
   let nonce = syntheticNonce message $ fromSecretN key
       (_e, ciphertext) = unsafePerformIO $
-        allocRet (B.length message + macSize) $ \pc ->
+        B.allocRet (B.length message + macSize) $ \pc ->
         withSecret key $ \pk ->
         withByteArray nonce $ \pn ->
         withByteArray message $ \pm ->
@@ -306,7 +303,7 @@ openDeterministicSecretBox (Key k) ciphertext =
   let (nonceB, encrypted) = splitAt nonceSize ciphertext
       Just nonce = asNonce <$> asBytesN nonceBytes nonceB
       (e, message) = unsafePerformIO $
-        allocRet (B.length ciphertext - macSize) $ \pm ->
+        B.allocRet (B.length ciphertext - macSize) $ \pm ->
         withSecret k $ \pk ->
         withByteArray n $ \pn ->
         withByteArray ciphertext $ \pc ->

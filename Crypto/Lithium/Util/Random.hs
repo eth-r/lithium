@@ -8,7 +8,8 @@ module Crypto.Lithium.Util.Random
   , randomNumber
   ) where
 
-import Data.ByteArray
+import Data.ByteArray as B
+import Data.ByteArray.Sized as Sized
 import Foundation
 
 import Crypto.Lithium.Unsafe.Types
@@ -21,7 +22,7 @@ Use Libsodium to generate random byte array
 randomBytes :: ByteArray ba
             => Int -> IO ba
 randomBytes n = do
-  (_err, ptr) <- allocRet n $ \p ->
+  (_err, ptr) <- B.allocRet n $ \p ->
     sodium_randombytes p (fromIntegral n)
   return ptr
 
@@ -32,8 +33,8 @@ randomNumber upto = do
 
 randomSecretN :: forall n. KnownNat n => IO (SecretN n)
 randomSecretN = do
-  bs <- randomBytes (asNum (ByteSize @n)) :: IO ScrubbedBytes
+  bs <- randomBytes (theNat @n) :: IO ScrubbedBytes
   return $ coerceConcealN bs
 
 randomBytesN :: forall n. KnownNat n => IO (BytesN n)
-randomBytesN = coerceToN <$> randomBytes (asNum (ByteSize @n))
+randomBytesN = Sized.coerce <$> randomBytes (theNat @n)

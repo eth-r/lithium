@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7bdf452eb47a149d9e8743e07b389b466e3c24f8dbaea3798e6db11c8fa269a8
+-- hash: 1286d3170d949fa0041e016863261bf21c0fc4b376cdac59a7de7f01d57d6518
 
 name:           lithium
 version:        0.0.0
@@ -41,6 +41,7 @@ library
     , deepseq
     , foundation
     , memory
+    , sized-memory
   exposed-modules:
       Crypto.Lithium.Aead
       Crypto.Lithium.Auth
@@ -81,11 +82,9 @@ library
       Crypto.Lithium.Internal.Sign
       Crypto.Lithium.Internal.Util
       Crypto.Lithium.Util.Init
-      Crypto.Lithium.Util.Nat
       Crypto.Lithium.Util.Phantom
       Crypto.Lithium.Util.Random
       Crypto.Lithium.Util.Secret
-      Crypto.Lithium.Util.Sized
   default-language: Haskell2010
 
 test-suite lithium-tests
@@ -103,6 +102,7 @@ test-suite lithium-tests
     , hspec
     , lithium
     , memory
+    , sized-memory
   other-modules:
       AeadTest
       AuthTest

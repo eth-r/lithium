@@ -83,8 +83,8 @@ signSpec = parallel $ do
   describe "byte sizes" $ do
 
     it "has matching type-level and value-level sizes" $ do
-      asNum publicKeyBytes `shouldBe` (publicKeySize :: Int)
-      asNum secretKeyBytes `shouldBe` (secretKeySize :: Int)
-      asNum keypairBytes   `shouldBe` (keypairSize :: Int)
-      asNum signatureBytes `shouldBe` (signatureSize :: Int)
-      asNum seedBytes      `shouldBe` (seedSize :: Int)
+      (fromIntegral . natVal) publicKeyBytes `shouldBe` publicKeySize
+      (fromIntegral . natVal) secretKeyBytes `shouldBe` secretKeySize
+      (fromIntegral . natVal) keypairBytes   `shouldBe` keypairSize
+      (fromIntegral . natVal) signatureBytes `shouldBe` signatureSize
+      (fromIntegral . natVal) seedBytes      `shouldBe` seedSize

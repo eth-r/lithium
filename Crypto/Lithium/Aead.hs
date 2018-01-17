@@ -38,6 +38,7 @@ import Crypto.Lithium.Internal.Util
 import Foundation
 import Control.DeepSeq
 import Data.ByteArray as B
+import Data.ByteArray.Sized
 import Data.ByteString as BS
 
 {-|

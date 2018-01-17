@@ -109,6 +109,7 @@ import Crypto.Lithium.Unsafe.Types
 import Control.DeepSeq
 import Foundation
 import Data.ByteArray as B
+import Data.ByteArray.Sized as Sized
 
 {-|
 Opaque 'box' secret key type, wrapping the sensitive data in 'ScrubbedBytes' to
@@ -172,7 +173,7 @@ makeKeypair s =
 
 unKeypair :: Keypair -> SecretN (SecretKeyBytes + PublicKeyBytes)
 unKeypair (Keypair (SecretKey sk) (PublicKey pk)) =
-  appendN <$> sk <*> concealN pk
+  Sized.append <$> sk <*> concealN pk
 
 asKeypair :: Decoder Keypair
 asKeypair = decodeSecret makeKeypair
@@ -221,7 +222,7 @@ fromMac = encodeWith unMac
 newKeypair :: IO Keypair
 newKeypair = withLithium $ do
   ((_e, sk), pk) <-
-    allocRetN $ \ppk ->
+    Sized.allocRet $ \ppk ->
     allocSecretN $ \psk ->
     sodium_box_keypair ppk psk
   let sk' = SecretKey sk
@@ -231,7 +232,7 @@ newKeypair = withLithium $ do
 seedKeypair :: Seed -> Keypair
 seedKeypair (Seed s) = withLithium $
   let ((_e, sk), pk) = unsafePerformIO $
-        allocRetN $ \ppk ->
+        Sized.allocRet $ \ppk ->
         allocSecretN $ \psk ->
         withSecret s $ \ps ->
         sodium_box_seed_keypair ppk psk ps
@@ -251,7 +252,7 @@ box (PublicKey pk) (SecretKey sk) (Nonce n) message =
       clen = mlen + macSize
 
       (_e, ciphertext) = unsafePerformIO $
-        allocRet clen $ \pctext ->
+        B.allocRet clen $ \pctext ->
         withByteArray pk $ \ppk ->
         withSecret sk $ \psk ->
         withByteArray n $ \pnonce ->
@@ -270,7 +271,7 @@ openBox (PublicKey pk) (SecretKey sk) (Nonce n) ciphertext =
       mlen = clen - macSize
 
       (e, message) = unsafePerformIO $
-        allocRet mlen $ \pmessage ->
+        B.allocRet mlen $ \pmessage ->
         withByteArray pk $ \ppk ->
         withSecret sk $ \psk ->
         withByteArray n $ \pnonce ->
@@ -310,7 +311,7 @@ openBoxPrefix pk sk ciphertext =
   --     --   ciphertext - (nonce + mac)
 
   --     (e, message) = unsafePerformIO $
-  --       allocRet mlen $ \pmessage ->
+  --       B.allocRet mlen $ \pmessage ->
   --       -- Allocate plaintext
   --       withByteArray pk $ \ppk ->
   --       withSecret sk $ \psk ->
@@ -331,8 +332,8 @@ detachedBox :: ByteOp m c
             => PublicKey -> SecretKey -> Nonce -> m -> (c, Mac)
 detachedBox (PublicKey pk) (SecretKey sk) (Nonce n) message = withLithium $
   let ((_e, mac), ciphertext) = unsafePerformIO $
-        allocRet (B.length message) $ \pc ->
-        allocRetN $ \pmac ->
+        B.allocRet (B.length message) $ \pc ->
+        Sized.allocRet $ \pmac ->
         withByteArray pk $ \ppk ->
         withSecret sk $ \psk ->
         withByteArray n $ \pn ->
@@ -344,7 +345,7 @@ openDetachedBox :: ByteOp c m
                 => PublicKey -> SecretKey -> Nonce -> Mac -> c -> Maybe m
 openDetachedBox (PublicKey pk) (SecretKey sk) (Nonce n) (Mac mac) ciphertext = withLithium $
   let (e, message) = unsafePerformIO $
-        allocRet (B.length ciphertext) $ \pm ->
+        B.allocRet (B.length ciphertext) $ \pm ->
         withByteArray mac $ \pmac ->
         withByteArray pk $ \ppk ->
         withSecret sk $ \psk ->
@@ -405,7 +406,7 @@ box' (SharedKey k) (Nonce n) message =
       clen = mlen + macSize
 
       (_e, ciphertext) = unsafePerformIO $
-        allocRet clen $ \pctext ->
+        B.allocRet clen $ \pctext ->
         withSecret k $ \pkey ->
         withByteArray n $ \pnonce ->
         withByteArray message $ \pmessage ->
@@ -423,7 +424,7 @@ openBox' (SharedKey k) (Nonce n) ciphertext =
       mlen = clen - macSize
 
       (e, message) = unsafePerformIO $
-        allocRet mlen $ \pmessage ->
+        B.allocRet mlen $ \pmessage ->
         withSecret k $ \pkey ->
         withByteArray n $ \pnonce ->
         withByteArray ciphertext $ \pctext ->
@@ -438,8 +439,8 @@ detachedBox' :: ByteOp m c
             => SharedKey -> Nonce -> m -> (c, Mac)
 detachedBox' (SharedKey k) (Nonce n) message = withLithium $
   let ((_e, mac), ciphertext) = unsafePerformIO $
-        allocRet (B.length message) $ \pc ->
-        allocRetN $ \pmac ->
+        B.allocRet (B.length message) $ \pc ->
+        Sized.allocRet $ \pmac ->
         withSecret k $ \pkey ->
         withByteArray n $ \pn ->
         withByteArray message $ \pm ->
@@ -452,7 +453,7 @@ openDetachedBox' :: ByteOp c m
                  => SharedKey -> Nonce -> Mac -> c -> Maybe m
 openDetachedBox' (SharedKey k) (Nonce n) (Mac mac) ciphertext = withLithium $
   let (e, message) = unsafePerformIO $
-        allocRet (B.length ciphertext) $ \pm ->
+        B.allocRet (B.length ciphertext) $ \pm ->
         withByteArray mac $ \pmac ->
         withSecret k $ \pkey ->
         withByteArray n $ \pn ->
@@ -475,7 +476,7 @@ sealBox (PublicKey pk) message =
       clen = mlen + sealSize
 
   (_e, ciphertext) <-
-        allocRet clen $ \pctext ->
+        B.allocRet clen $ \pctext ->
         withByteArray pk $ \ppk ->
         withByteArray message $ \pmessage ->
         sodium_box_seal pctext
@@ -491,7 +492,7 @@ openSealedBox (Keypair (SecretKey sk) (PublicKey pk)) ciphertext =
       mlen = clen - sealSize
 
       (e, message) = unsafePerformIO $
-        allocRet mlen $ \pmessage ->
+        B.allocRet mlen $ \pmessage ->
         withByteArray pk $ \ppk ->
         withSecret sk $ \psk ->
         withByteArray ciphertext $ \pctext ->

@@ -20,31 +20,23 @@ module Crypto.Lithium.Types
   , type Encoder
   , type Decoder
 
-  , N
-  , fromN
+  , Sized
+  , unSized
 
-  , emptyN
-  , allocRetN
+  , empty
+  , allocRet
 
-  , maybeToN
-  , coerceToN
-  , convertN
-
-  , appendN
-
-  , takeN'
-  , takeN
-
-  , dropN'
-  , dropN
-
-  , tailN'
-  , tailN
-
-  , splitN'
-  , splitN
-
-  , xorN
+  , asSized
+  , coerce
+  , convert
+  , append
+  , append3
+  , take
+  , drop
+  , tail
+  , split
+  , split3
+  , xor
 
   , Secret
 

@@ -156,7 +156,7 @@ aeadSpec = parallel $ do
   describe "byte sizes" $ do
 
     it "has matching type-level and value-level sizes" $ do
-      asNum keyBytes   `shouldBe` (keySize :: Int)
-      asNum macBytes   `shouldBe` (macSize :: Int)
-      asNum nonceBytes `shouldBe` (nonceSize :: Int)
-      asNum tagBytes   `shouldBe` (tagSize :: Int)
+      (fromIntegral . natVal) keyBytes   `shouldBe` keySize
+      (fromIntegral . natVal) macBytes   `shouldBe` macSize
+      (fromIntegral . natVal) nonceBytes `shouldBe` nonceSize
+      (fromIntegral . natVal) tagBytes   `shouldBe` tagSize

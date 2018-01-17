@@ -49,10 +49,10 @@ import Foundation
 import Control.DeepSeq
 import Data.ByteArray as B
 import Data.ByteString.Char8 as BC
+import Data.ByteArray.Sized as Sized
 
 import Crypto.Lithium.Internal.Util
 import Crypto.Lithium.Internal.Derive
-import Crypto.Lithium.Unsafe.Types
 
 -- deriveable types
 
@@ -153,7 +153,7 @@ Byte arrays longer than 8 bytes are truncated
 Byte arrays shorter than 8 bytes have zeros appended to the value
 -}
 makeContext :: ByteArray a => a -> Context
-makeContext bs = Context $ coerceToN $ B.convert bs
+makeContext bs = Context $ Sized.coerce $ B.convert bs
 
 newtype Subkey (context :: Symbol) subkeyType = Subkey
   { unSubkey :: subkeyType } deriving (Eq, Ord, Show, NFData)
@@ -163,7 +163,7 @@ deriveSecretN :: forall l. (KnownNat l)
 deriveSecretN (MasterKey master) (SubkeyId i) context =
   withLithium $
 
-  let slen = asNum $ ByteSize @l
+  let slen = theNat @l
       (_e, subkey) = unsafePerformIO $
         allocSecretN $ \psubkey ->
         withSecret master $ \pmaster ->

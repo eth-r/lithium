@@ -10,6 +10,7 @@
 module TestUtils where
 
 import Crypto.Lithium.Unsafe.Types
+import Data.ByteArray.Sized as Sized
 
 import Test.Hspec
 import Test.Hspec.QuickCheck
@@ -23,15 +24,15 @@ import           Control.Monad           (replicateM)
 instance Arbitrary ByteString where
   arbitrary = BS.pack <$> arbitrary
 
-instance (KnownNat l, ByteArray b) => Arbitrary (N l b) where
-  arbitrary = coerceToN . B.pack <$> replicateM (asNum (ByteSize @l)) arbitrary
+instance (KnownNat l, ByteArray b) => Arbitrary (Sized l b) where
+  arbitrary = Sized.coerce . B.pack <$> replicateM (theNat @l) arbitrary
 
 instance Arbitrary a => Arbitrary (Secret a) where
   arbitrary = Conceal <$> arbitrary
 
 newtype Perturb = Perturb ByteString deriving (Eq, Show, Ord, Monoid, ByteArray, ByteArrayAccess)
 
-newtype PerturbN l = PerturbN (N l ByteString) deriving (Eq, Show, Ord)
+newtype PerturbN l = PerturbN (Sized l ByteString) deriving (Eq, Show, Ord)
 
 newtype Message = Message ByteString deriving (Eq, Show, Ord, Monoid)
 
@@ -44,8 +45,8 @@ perturb (Perturb with) target =
       padded = B.append with $ B.replicate diff 0
   in B.xor target (B.convert padded :: a)
 
-perturbN :: forall a l. (KnownNat l, ByteArray a) => PerturbN l -> N l a -> N l a
-perturbN (PerturbN with) target = xorN target $ convertN with
+perturbN :: forall a l. (KnownNat l, ByteArray a) => PerturbN l -> Sized l a -> Sized l a
+perturbN (PerturbN with) target = Sized.xor target $ Sized.convert with
 
 instance Arbitrary Perturb where
   arbitrary = do
@@ -58,8 +59,8 @@ instance Arbitrary Perturb where
 instance (KnownNat l) => Arbitrary (PerturbN l) where
   arbitrary = do
     base <- arbitrary
-    let res = if allZerosN base
-          then coerceToN $ B.cons 1 $ B.drop 1 $ fromN base
+    let res = if Sized.allZeros base
+          then Sized.coerce $ B.cons 1 $ B.drop 1 $ unSized base
           else base
     pure $ PerturbN res
 

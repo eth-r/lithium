@@ -76,6 +76,7 @@ module Crypto.Lithium.Unsafe.Sign
 import Foundation hiding (Signed)
 
 import Data.ByteArray as B
+import Data.ByteArray.Sized as Sized
 
 import Crypto.Lithium.Internal.Sign
 import Crypto.Lithium.Internal.Util
@@ -152,7 +153,7 @@ asKeypair s =
 
 fromKeypair :: Keypair -> SecretN KeypairBytes
 fromKeypair (Keypair (SecretKey sk) (PublicKey pk)) =
-  appendN <$> sk <*> concealN pk
+  Sized.append <$> sk <*> concealN pk
 
 {-|
 Seed for deriving keypairs from
@@ -208,7 +209,7 @@ Generate new keypair
 newKeypair :: IO Keypair
 newKeypair = withLithium $ do
   ((_e, sk), pk) <-
-    allocRetN $ \ppk ->
+    Sized.allocRet $ \ppk ->
     allocSecretN $ \psk ->
     sodium_sign_keypair ppk psk
   let sk' = SecretKey sk
@@ -221,7 +222,7 @@ Derive keypair from seed generated earlier
 seedKeypair :: Seed -> Keypair
 seedKeypair (Seed s) = withLithium $
   let ((_e, sk), pk) = unsafePerformIO $
-        allocRetN $ \ppk ->
+        Sized.allocRet $ \ppk ->
         allocSecretN $ \psk ->
         withSecret s $ \ps ->
         sodium_sign_seed_keypair ppk psk ps
@@ -235,7 +236,7 @@ Derive the public key corresponding to a secret key
 toPublicKey :: SecretKey -> PublicKey
 toPublicKey (SecretKey sk) = withLithium $
   let (_e, pk) = unsafePerformIO $
-        allocRetN $ \ppk ->
+        Sized.allocRet $ \ppk ->
         withSecret sk $ \psk ->
         sodium_sign_sk_to_pk ppk psk
   in (PublicKey pk)
@@ -261,7 +262,7 @@ sign (SecretKey sk) message = withLithium $
       mlenC = fromIntegral mlen
       slen = mlen + signatureSize
       (_e, signed) = unsafePerformIO $
-        allocRet slen $ \psigned ->
+        B.allocRet slen $ \psigned ->
         withSecret sk $ \pkey ->
         withByteArray message $ \pmessage ->
         sodium_sign psigned
@@ -281,7 +282,7 @@ openSigned (PublicKey pk) signed = withLithium $
       mlen = slen - signatureSize
       slenC = fromIntegral slen
       (e, message) = unsafePerformIO $
-        allocRet mlen $ \pmessage ->
+        B.allocRet mlen $ \pmessage ->
         withByteArray pk $ \pkey ->
         withByteArray signed $ \psigned ->
         sodium_sign_open pmessage nullPtr psigned slenC pkey
@@ -297,7 +298,7 @@ signDetached :: ( ByteArrayAccess m )
 signDetached (SecretKey k) message = withLithium $
   let mlenC = fromIntegral $ B.length message
       (_e, signature) = unsafePerformIO $
-        allocRetN $ \psignature ->
+        Sized.allocRet $ \psignature ->
         withSecret k $ \pkey ->
         withByteArray message $ \pmessage ->
         sodium_sign_detached psignature nullPtr

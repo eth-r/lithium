@@ -139,7 +139,7 @@ secretBoxSpec = parallel $ do
   describe "byte sizes" $ do
 
     it "has matching type-level and value-level sizes" $ do
-      asNum keyBytes   `shouldBe` (keySize :: Int)
-      asNum macBytes   `shouldBe` (macSize :: Int)
-      asNum nonceBytes `shouldBe` (nonceSize :: Int)
-      asNum tagBytes   `shouldBe` (tagSize :: Int)
+      (fromIntegral . natVal) keyBytes   `shouldBe` (keySize :: Int)
+      (fromIntegral . natVal) macBytes   `shouldBe` (macSize :: Int)
+      (fromIntegral . natVal) nonceBytes `shouldBe` (nonceSize :: Int)
+      (fromIntegral . natVal) tagBytes   `shouldBe` (tagSize :: Int)

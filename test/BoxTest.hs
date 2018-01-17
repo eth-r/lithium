@@ -190,10 +190,10 @@ boxSpec = parallel $ do
   describe "byte sizes" $ do
 
     it "has matching type-level and value-level sizes" $ do
-      asNum publicKeyBytes `shouldBe` (publicKeySize :: Int)
-      asNum secretKeyBytes `shouldBe` (secretKeySize :: Int)
-      asNum macBytes       `shouldBe` (macSize :: Int)
-      asNum nonceBytes     `shouldBe` (nonceSize :: Int)
-      asNum seedBytes      `shouldBe` (seedSize :: Int)
-      asNum sharedKeyBytes `shouldBe` (sharedKeySize :: Int)
-      asNum tagBytes       `shouldBe` (tagSize :: Int)
+      (fromIntegral . natVal) publicKeyBytes `shouldBe` publicKeySize
+      (fromIntegral . natVal) secretKeyBytes `shouldBe` secretKeySize
+      (fromIntegral . natVal) macBytes       `shouldBe` macSize
+      (fromIntegral . natVal) nonceBytes     `shouldBe` nonceSize
+      (fromIntegral . natVal) seedBytes      `shouldBe` seedSize
+      (fromIntegral . natVal) sharedKeyBytes `shouldBe` sharedKeySize
+      (fromIntegral . natVal) tagBytes       `shouldBe` tagSize
