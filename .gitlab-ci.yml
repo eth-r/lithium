@@ -10,7 +10,6 @@ before_script:
   - apk --update add ca-certificates
   - nix-env -f "<nixpkgs>" -i bash stack
   - stack setup
-  - stack build
 
 build:
   stage: build

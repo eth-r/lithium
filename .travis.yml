@@ -5,13 +5,15 @@ before_install:
 
 install:
   - stack setup
-  - stack build
 
 script:
   - stack test
 
 afer_success:
-  - git clone https://github.com/jlengyel/codecov-haskell ../codecov-haskell
-  - stack install ../codecov-haskell
+  - nix-env -f "<nixpkgs>" -iA git xz gnumake
+  - git clone https://github.com/jlengyel/codecov-haskell
+  - cd codecov-haskell
+  - stack install .
+  - cd ..
   - stack test --coverage --haddock
   - codecov-haskell lithium-tests
