@@ -36,10 +36,12 @@ module Crypto.Lithium.Unsafe.Password
   , deriveSecretN
 
   -- * Protecting secrets with passwords
+  , Protected(..)
+  , passwordProtect
+  , passwordOpen
 
-  -- , PasswordProtected(..)
-  -- , passwordProtect
-  -- , passwordOpen
+  , packProtected
+  , unpackProtected
 
   -- * Hashing policy
   , Policy(..)
@@ -97,14 +99,18 @@ import Crypto.Lithium.Internal.Password as I
 import Crypto.Lithium.Unsafe.SecretBox as S
 import Crypto.Lithium.Unsafe.Derive (Deriveable(..))
 import Crypto.Lithium.Unsafe.Types
+
 import Data.ByteArray.Sized as Sized
 
 import Foundation
 import Control.DeepSeq
 
--- import Data.Maybe (fromJust)
+import Data.ByteArray.Mapping
+import Data.ByteArray.Pack
+import Data.ByteArray.Parse as P
 import Data.ByteArray as B
--- import Data.ByteString as BS
+import Data.ByteString as BS
+import Data.Memory.Endian
 
 {-|
 Salt for hashing passwords
@@ -212,10 +218,50 @@ derive pw salt policy =
 
 
 
+newtype Protected typeof = Protected
+  { getProtected :: ByteString } deriving (Eq, Show, Ord, ByteArrayAccess)
 
+packProtected :: ByteString -> Salt -> Policy -> Protected t
+packProtected ciphertext (Salt salt) policy =
+  Protected $ B.append tag ciphertext
+  where
+    (Right tag) = fill (24 + theNat @SaltBytes) $ do
+      putBytes @Bytes opsBytes
+      putBytes @Bytes memBytes
+      putBytes @Bytes algBytes
+      putBytes salt
+    opsBytes = fromW64BE $ fromIntegral ops
+    memBytes = fromW64BE $ fromIntegral mem
+    algBytes = fromW64BE $ fromIntegral alg
+    (ops, mem, alg) = unpackPolicy policy
 
+unpackProtected :: Protected t -> Maybe (ByteString, Salt, Policy)
+unpackProtected (Protected p) = do
+  let ParseOK ciphertext saltB =
+        parse ((\_ s -> s)
+               <$> P.skip 24
+               <*> P.take (theNat @SaltBytes)) p
+  ops <- opslimit $ fromIntegral $ fromBE $ toW64BE p 0
+  mem <- memlimit $ fromIntegral $ fromBE $ toW64BE p 8
+  let alg = algorithm $ toEnum $ fromIntegral $ fromBE $ toW64BE p 16
+  let policy = Policy ops mem alg
+  salt <- asSalt saltB
+  return (ciphertext, salt, policy)
 
+passwordProtect :: ByteArrayAccess a
+                => Policy -> ScrubbedBytes -> a -> IO (Protected a)
+passwordProtect policy pw plaintext = do
+  salt <- newSalt
+  let key = derive pw salt policy
+  ciphertext <- S.secretBoxRandom key plaintext
+  return $ packProtected ciphertext salt policy
 
+passwordOpen :: ByteArray a
+             => ScrubbedBytes -> Protected a -> Maybe a
+passwordOpen pw p = do
+  (ciphertext, salt, policy) <- unpackProtected p
+  let key = derive pw salt policy
+  S.openSecretBoxPrefix key ciphertext
 
 
 
@@ -304,11 +350,13 @@ newtype Opslimit = Opslimit { getOpslimit :: Int } deriving (Eq, Ord, Show, NFDa
 {-|
 Smart constructor for opslimit
 -}
-opslimit :: Int -> Opslimit
+opslimit :: Int -> Maybe Opslimit
 opslimit x
-  | Opslimit x < minOpslimit = error $ show x <> " below minimum opslimit " <> show minOpslimit
-  | Opslimit x > maxOpslimit = error $ show x <> " above maximum opslimit " <> show maxOpslimit
-  | otherwise = Opslimit x
+  -- Opslimit x < minOpslimit = error $ show x <> " below minimum opslimit " <> show minOpslimit
+  -- Opslimit x > maxOpslimit = error $ show x <> " above maximum opslimit " <> show maxOpslimit
+  | Opslimit x < minOpslimit = Nothing
+  | Opslimit x > maxOpslimit = Nothing
+  | otherwise = Just (Opslimit x)
 
 opslimitInteractive :: Opslimit
 opslimitInteractive = Opslimit (fromIntegral sodium_pwhash_opslimit_interactive)
@@ -328,11 +376,13 @@ newtype Memlimit = Memlimit { getMemlimit :: Int } deriving (Eq, Ord, Show, NFDa
 {-|
 Smart constructor for memlimit
 -}
-memlimit :: Int -> Memlimit
+memlimit :: Int -> Maybe Memlimit
 memlimit x
-  | Memlimit x < minMemlimit = error $ show x <> " below minimum memlimit " <> show minMemlimit
-  | Memlimit x > maxMemlimit = error $ show x <> " above maximum memlimit " <> show maxMemlimit
-  | otherwise = Memlimit x
+  -- Memlimit x < minMemlimit = error $ show x <> " below minimum memlimit " <> show minMemlimit
+  -- Memlimit x > maxMemlimit = error $ show x <> " above maximum memlimit " <> show maxMemlimit
+  | Memlimit x < minMemlimit = Nothing
+  | Memlimit x > maxMemlimit = Nothing
+  | otherwise = Just (Memlimit x)
 
 memlimitInteractive :: Memlimit
 memlimitInteractive = Memlimit (fromIntegral sodium_pwhash_memlimit_interactive)
