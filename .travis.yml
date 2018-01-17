@@ -2,7 +2,7 @@ language: nix
 
 before_install:
   - nix-env -f "<nixpkgs>" -iA bash stack git xz gnumake
-  - git clone https://github.com/jlengyel/codecov-haskell
+  - git clone https://github.com/eth-r/codecov-haskell
   - cd codecov-haskell
   - stack install .
   - cd ..
