@@ -1,8 +1,8 @@
 image: nixos/nix:latest
 
-stages:
-  - build
-  - coverage
+# stages:
+#   - build
+#   - coverage
 
 before_script:
   - nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
@@ -12,12 +12,12 @@ before_script:
   - stack setup
 
 build:
-  stage: build
+  # stage: build
   script:
     - stack test
 
 coverage:
-  stage: coverage
+  # stage: coverage
   script:
     - nix-env -f "<nixpkgs>" -iA git xz gnumake
     - git clone https://github.com/eth-r/codecov-haskell
