@@ -31,15 +31,6 @@ instance Arbitrary U.Key where
 instance Arbitrary O.Key where
   arbitrary = O.Key <$> arbitrary
 
-newtype OKey = OKey O.Key deriving (Eq)
-instance Arbitrary OKey where
-  arbitrary = OKey <$> arbitrary
-instance Show OKey where
-  show (OKey k) = (++) "Key"
-    $ show @ByteString
-    $ B.convertToBase B.Base16
-    $ O.fromKey @ByteString k
-
 authSpec :: Spec
 authSpec = parallel $ do
   describe "Auth" $ do
@@ -77,7 +68,7 @@ authSpec = parallel $ do
     describe "auth" $ do
 
       prop "authes different messages to different digests" $
-        \(Message msg1) (Message msg2) (OKey key) -> msg1 /= msg2 ==>
+        \(Message msg1) (Message msg2) key -> msg1 /= msg2 ==>
         O.auth key msg1 `shouldNotBe` O.auth key msg2
 
       prop "authes the same message with different keys to different digests" $
