@@ -13,7 +13,7 @@ install:
 script:
   # - stack test
   - stack test --coverage --haddock
-  - codecov-haskell lithium-tests
+  - stack exec "codecov-haskell lithium-tests"
 
 # afer_success:
 #   - nix-env -f "<nixpkgs>" -iA git xz gnumake
