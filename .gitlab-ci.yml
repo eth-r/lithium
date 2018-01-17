@@ -22,7 +22,9 @@ coverage:
   script:
     - nix-env -f "<nixpkgs>" -iA git
     - git clone https://github.com/jlengyel/codecov-haskell
-    - stack install ./codecov-haskell
+    - cd codecov-haskell
+    - stack install .
+    - cd ..
     - stack test --coverage
     - codecov-haskell lithium-tests
   allow_failure: true
