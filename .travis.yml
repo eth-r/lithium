@@ -10,11 +10,8 @@ install:
 script:
   - stack test
 
-after_script:
-  - stack haddock
-
 afer_success:
   - git clone https://github.com/jlengyel/codecov-haskell ../codecov-haskell
   - stack install ../codecov-haskell
-  - stack test --coverage
+  - stack test --coverage --haddock
   - codecov-haskell lithium-tests
