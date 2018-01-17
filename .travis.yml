@@ -1,19 +1,23 @@
 language: nix
 
 before_install:
-  - nix-env -f "<nixpkgs>" -i bash stack
+  - nix-env -f "<nixpkgs>" -iA bash stack git xz gnumake
+  - git clone https://github.com/jlengyel/codecov-haskell
+  - cd codecov-haskell
+  - stack install .
+  - cd ..
 
 install:
   - stack setup
 
 script:
-  - stack test
-
-afer_success:
-  - nix-env -f "<nixpkgs>" -iA git xz gnumake
-  - git clone https://github.com/jlengyel/codecov-haskell
-  - cd codecov-haskell
-  - stack install .
-  - cd ..
+  # - stack test
   - stack test --coverage --haddock
   - codecov-haskell lithium-tests
+
+# afer_success:
+#   - nix-env -f "<nixpkgs>" -iA git xz gnumake
+#   - git clone https://github.com/jlengyel/codecov-haskell
+#   - cd codecov-haskell
+#   - stack install .
+#   - cd ..
