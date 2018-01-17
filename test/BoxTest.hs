@@ -60,6 +60,28 @@ boxSpec = parallel $ do
           let decrypted = S.openBox (publicKey charlie) (secretKey bob) ciphertext
           decrypted `shouldBe` (Nothing :: Maybe ByteString)
 
+    describe "precalculate" $ do
+
+      prop "symmetric" $
+        \alice bob -> do
+          let bobs = precalculate (publicKey alice) (secretKey bob)
+          let alices = precalculate (publicKey bob) (secretKey alice)
+          bobs `shouldBe` alices
+
+      prop "interchangeable when sending" $
+        \alice bob (Message msg) -> do
+          let bobs = precalculate (publicKey alice) (secretKey bob)
+          ciphertext <- S.box' bobs msg
+          let decrypted = S.openBox (publicKey bob) (secretKey alice) ciphertext
+          decrypted `shouldBe` Just msg
+
+      prop "interchangeable when receiving" $
+        \alice bob (Message msg) -> do
+          ciphertext <- S.box (publicKey alice) (secretKey bob) msg
+          let alices = precalculate (publicKey bob) (secretKey alice)
+          let decrypted = S.openBox' alices ciphertext
+          decrypted `shouldBe` Just msg
+
     describe "sealBox" $ do
 
       prop "encrypts" $
