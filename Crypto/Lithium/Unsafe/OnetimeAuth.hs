@@ -1,8 +1,5 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -118,7 +115,7 @@ auth (Key key) message =
         sodium_onetimeauth pmac
                            pmessage mlen
                            pkey
-  in (Mac mac)
+  in Mac mac
 
 {-|
 Verify the authentication tag of a message
@@ -145,7 +142,7 @@ authInit (Key key) = withLithium $
         withSecret key $ \pkey ->
         sodium_onetimeauth_init pstate
                                 pkey
-  in (State state)
+  in State state
 
 authUpdate :: forall a. ByteArrayAccess a => State -> a -> State
 authUpdate (State state) chunk =
@@ -153,21 +150,19 @@ authUpdate (State state) chunk =
   let clen = fromIntegral $ B.length chunk
       state' = unsafePerformIO $
         copySecretN state $ \pstate' ->
-        withByteArray chunk $ \pchunk ->
+        withByteArray chunk $ \pchunk -> void $
         sodium_onetimeauth_update pstate'
                                   pchunk clen
-        >> return ()
-  in (State state')
+  in State state'
 
 authFinal :: State -> Mac
 authFinal (State state) = withLithium $
   let (_state', mac) = unsafePerformIO $
         Sized.allocRet $ \pmac ->
-        copySecretN state $ \pstate' ->
+        copySecretN state $ \pstate' -> void $
         sodium_onetimeauth_final pstate'
                                  pmac
-        >> return ()
-  in (Mac mac)
+  in Mac mac
 
 streamingAuth :: (Foldable t, ByteArrayAccess a) => Key -> t a -> Mac
 streamingAuth key t =

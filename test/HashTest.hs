@@ -51,19 +51,19 @@ hashSpec = parallel $ do
 
     describe "longHash" $ do
 
-      it "matches empty test vector" $ do
+      it "matches empty test vector" $
         fromLongDigest (keyedLongHash testKey testIn0) `shouldBe` testOut0
 
-      it "matches test vector 1" $ do
+      it "matches test vector 1" $
         fromLongDigest (keyedLongHash testKey testIn1) `shouldBe` testOut1
 
-      it "matches test vector 2" $ do
+      it "matches test vector 2" $
         fromLongDigest (keyedLongHash testKey testIn2) `shouldBe` testOut2
 
-      it "matches test vector 3" $ do
+      it "matches test vector 3" $
         fromLongDigest (keyedLongHash testKey testIn3) `shouldBe` testOut3
 
-      it "matches test vector 4" $ do
+      it "matches test vector 4" $
         fromLongDigest (keyedLongHash testKey testIn4) `shouldBe` testOut4
 
       prop "a shorter digest is not the prefix of a longer digest" $
@@ -72,7 +72,7 @@ hashSpec = parallel $ do
               longDigest = longHash msg
           in S.fromDigest shortDigest `shouldNotBe` BS.take digestSize (fromLongDigest longDigest)
 
-    describe "streamingHash" $ do
+    describe "streamingHash" $
 
       prop "is equivalent to hashing the data directly" $
         \chunks ->
@@ -80,23 +80,23 @@ hashSpec = parallel $ do
               directDigest = S.hash (BS.concat chunks)
           in S.fromDigest streamDigest `shouldBe` (S.fromDigest directDigest :: ByteString)
 
-  describe "byte sizes" $ do
+  describe "byte sizes" $
 
     it "has matching type-level and value-level sizes" $ do
-      (fromIntegral . natVal) digestBytes `shouldBe` digestSize
-      (fromIntegral . natVal) longDigestBytes `shouldBe` longDigestSize
-      (fromIntegral . natVal) keyBytes `shouldBe` keySize
-      (fromIntegral . natVal) longKeyBytes `shouldBe` longKeySize
+      theNat @DigestBytes `shouldBe` digestSize
+      theNat @LongDigestBytes `shouldBe` longDigestSize
+      theNat @KeyBytes `shouldBe` keySize
+      theNat @LongKeyBytes `shouldBe` longKeySize
 
-      (fromIntegral . natVal) minDigestBytes `shouldBe` minDigestSize
-      (fromIntegral . natVal) maxDigestBytes `shouldBe` maxDigestSize
-      (fromIntegral . natVal) minKeyBytes `shouldBe` minKeySize
-      (fromIntegral . natVal) maxKeyBytes `shouldBe` maxKeySize
-      (fromIntegral . natVal) stateBytes `shouldBe` stateSize
+      theNat @MinDigestBytes `shouldBe` minDigestSize
+      theNat @MaxDigestBytes `shouldBe` maxDigestSize
+      theNat @MinKeyBytes `shouldBe` minKeySize
+      theNat @MaxKeyBytes `shouldBe` maxKeySize
+      theNat @StateBytes `shouldBe` stateSize
 
 
 from16 :: ByteString -> Bytes
-from16 = either (B.convert . const @ByteString "") id . B.convertFromBase B.Base16
+from16 = either (const B.empty) id . B.convertFromBase B.Base16
 
 testKey :: LongKey
 testKey = fromJust . U.asKey @LongKeyBytes $ from16 "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"

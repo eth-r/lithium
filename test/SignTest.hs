@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 module SignTest (signSpec) where
 
 import Test.Hspec.QuickCheck
@@ -80,11 +81,11 @@ signSpec = parallel $ do
               isValid = S.verify (publicKey bob) msg signature
           in isValid `shouldBe` False
 
-  describe "byte sizes" $ do
+  describe "byte sizes" $
 
     it "has matching type-level and value-level sizes" $ do
-      (fromIntegral . natVal) publicKeyBytes `shouldBe` publicKeySize
-      (fromIntegral . natVal) secretKeyBytes `shouldBe` secretKeySize
-      (fromIntegral . natVal) keypairBytes   `shouldBe` keypairSize
-      (fromIntegral . natVal) signatureBytes `shouldBe` signatureSize
-      (fromIntegral . natVal) seedBytes      `shouldBe` seedSize
+      theNat @PublicKeyBytes `shouldBe` publicKeySize
+      theNat @SecretKeyBytes `shouldBe` secretKeySize
+      theNat @KeypairBytes   `shouldBe` keypairSize
+      theNat @SignatureBytes `shouldBe` signatureSize
+      theNat @SeedBytes      `shouldBe` seedSize

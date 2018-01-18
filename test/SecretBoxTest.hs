@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 module SecretBoxTest (secretBoxSpec) where
 
 import Test.Hspec.QuickCheck
@@ -27,7 +28,7 @@ instance Arbitrary Nonce where
 secretBoxSpec :: Spec
 secretBoxSpec = parallel $ do
 
-  describe "SecretBox" $ do
+  describe "SecretBox" $
 
     describe "secretBox" $ do
 
@@ -136,10 +137,10 @@ secretBoxSpec = parallel $ do
               xoredCiphertexts = B.xor (ct1 :: ByteString) (ct2 :: ByteString)
           in xoredCiphertexts `shouldBe` (B.xor msg1 msg2 :: ByteString)
 
-  describe "byte sizes" $ do
+  describe "byte sizes" $
 
     it "has matching type-level and value-level sizes" $ do
-      (fromIntegral . natVal) keyBytes   `shouldBe` (keySize :: Int)
-      (fromIntegral . natVal) macBytes   `shouldBe` (macSize :: Int)
-      (fromIntegral . natVal) nonceBytes `shouldBe` (nonceSize :: Int)
-      (fromIntegral . natVal) tagBytes   `shouldBe` (tagSize :: Int)
+      theNat @KeyBytes   `shouldBe` keySize
+      theNat @MacBytes   `shouldBe` macSize
+      theNat @NonceBytes `shouldBe` nonceSize
+      theNat @TagBytes   `shouldBe` tagSize

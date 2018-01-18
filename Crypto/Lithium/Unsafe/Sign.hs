@@ -1,5 +1,4 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
@@ -80,7 +79,6 @@ import Data.ByteArray.Sized as Sized
 
 import Crypto.Lithium.Internal.Sign
 import Crypto.Lithium.Internal.Util
-import Crypto.Lithium.Unsafe.Types
 
 import Control.DeepSeq
 {-|
@@ -228,7 +226,7 @@ seedKeypair (Seed s) = withLithium $
         sodium_sign_seed_keypair ppk psk ps
       sk' = SecretKey sk
       pk' = PublicKey pk
-  in (Keypair sk' pk')
+  in Keypair sk' pk'
 
 {-|
 Derive the public key corresponding to a secret key
@@ -239,7 +237,7 @@ toPublicKey (SecretKey sk) = withLithium $
         Sized.allocRet $ \ppk ->
         withSecret sk $ \psk ->
         sodium_sign_sk_to_pk ppk psk
-  in (PublicKey pk)
+  in PublicKey pk
 
 {-|
 Derive the seed a given secret key can be generated from
@@ -250,7 +248,7 @@ toSeed (SecretKey sk) = withLithium $
         allocSecretN $ \pSeed ->
         withSecret sk $ \pSk ->
         sodium_sign_sk_to_seed pSeed pSk
-  in (Seed seed)
+  in Seed seed
 
 {-|
 Sign a message, attaching the signature to it
@@ -304,7 +302,7 @@ signDetached (SecretKey k) message = withLithium $
         sodium_sign_detached psignature nullPtr
                              pmessage mlenC
                              pkey
-  in (Signature signature)
+  in Signature signature
 
 {-|
 Verify a detached signature

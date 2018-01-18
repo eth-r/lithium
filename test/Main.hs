@@ -1,8 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DataKinds #-}
--- {-# LANGUAGE NoImplicitPrelude #-}
--- import Foundation
 import Test.Hspec
 import Test.Hspec.QuickCheck
 
@@ -15,8 +12,7 @@ import SecretBoxTest
 import SignTest
 
 main :: IO ()
-main = do
-  hspec spec
+main = hspec spec
 
 spec :: Spec
 spec = parallel $ modifyMaxSuccess (const 1000) $ do

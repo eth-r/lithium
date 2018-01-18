@@ -16,8 +16,8 @@ signEnv = newKeypair
 
 benchSign :: Keypair -> Benchmark
 benchSign alice = do
-  let sign :: ByteString -> (Signed ByteString)
-      sign message = S.sign (secretKey alice) message
+  let sign :: ByteString -> Signed ByteString
+      sign = S.sign (secretKey alice)
 
       verify :: ByteString -> Bool
       verify message =
@@ -26,14 +26,14 @@ benchSign alice = do
           Nothing -> False
           Just ms -> True
 
-  bgroup "Sign" $
+  bgroup "Sign"
     [ bench "newKeypair" $ nfIO newKeypair
-    , bgroup "sign" $
+    , bgroup "sign"
       [ bench "128 B" $ nf sign bs128
       , bench "1 MB" $ nf sign mb1
       , bench "5 MB" $ nf sign mb5
       ]
-    , bgroup "sign+verify" $
+    , bgroup "sign+verify"
       [ bench "128 B" $ nf verify bs128
       , bench "1 MB" $ nf verify mb1
       , bench "5 MB" $ nf verify mb5

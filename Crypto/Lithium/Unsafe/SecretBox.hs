@@ -1,16 +1,11 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# OPTIONS_HADDOCK hide, show-extensions #-}
+{-# OPTIONS_HADDOCK hide #-}
 {-|
 Module      : Crypto.Lithium.Unsafe.SecretBox
 Description : XSalsa20Poly1305 symmetric-key encryption
@@ -73,7 +68,7 @@ import Control.DeepSeq
 import Data.ByteArray as B
 import Data.ByteArray.Sized as Sized
 
-import Foundation hiding (splitAt)
+import Foundation
 
 
 newtype Key = Key
@@ -196,7 +191,8 @@ openSecretBoxPrefix (Key key) ciphertext =
 secretBoxN :: forall l.
               ( KnownNats l (l + MacBytes) )
            => Key -> Nonce -> SecretN l -> BytesN (l + MacBytes)
-secretBoxN (Key key) (Nonce nonce) secret = withLithium $
+secretBoxN (Key key) (Nonce nonce) secret =
+  withLithium $
   let (_e, ciphertext) = unsafePerformIO $
         Sized.allocRet $ \pc ->
         withSecret key $ \pk ->
@@ -208,7 +204,8 @@ secretBoxN (Key key) (Nonce nonce) secret = withLithium $
 openSecretBoxN :: forall l.
                   ( KnownNats l (l + MacBytes) )
                => Key -> Nonce -> BytesN (l + MacBytes) -> Maybe (SecretN l)
-openSecretBoxN (Key k) (Nonce n) ciphertext = withLithium $
+openSecretBoxN (Key k) (Nonce n) ciphertext =
+  withLithium $
   let (e, message) = unsafePerformIO $
         allocSecretN $ \pm ->
         withSecret k $ \pk ->
@@ -222,7 +219,8 @@ openSecretBoxN (Key k) (Nonce n) ciphertext = withLithium $
 
 secretBoxDetached :: (ByteOp m c)
                   => Key -> Nonce -> m -> (c, Mac)
-secretBoxDetached (Key key) (Nonce nonce) message = withLithium $
+secretBoxDetached (Key key) (Nonce nonce) message =
+  withLithium $
   let ((_e, mac), ciphertext) = unsafePerformIO $
         B.allocRet (B.length message) $ \pc ->
         Sized.allocRet $ \pmac ->
@@ -234,7 +232,8 @@ secretBoxDetached (Key key) (Nonce nonce) message = withLithium $
 
 openSecretBoxDetached :: (ByteOp c m)
                       => Key -> Nonce -> Mac -> c -> Maybe m
-openSecretBoxDetached (Key key) (Nonce nonce) (Mac mac) ciphertext = withLithium $
+openSecretBoxDetached (Key key) (Nonce nonce) (Mac mac) ciphertext =
+  withLithium $
   let (e, message) = unsafePerformIO $
         B.allocRet (B.length ciphertext) $ \pm ->
         withSecret key $ \pk ->
@@ -248,7 +247,8 @@ openSecretBoxDetached (Key key) (Nonce nonce) (Mac mac) ciphertext = withLithium
 
 secretBoxDetachedN :: forall l b. (KnownNat l, ByteArray b)
                    => Key -> Nonce -> SecretN l -> (Sized l b, Mac)
-secretBoxDetachedN (Key key) (Nonce nonce) message = withLithium $
+secretBoxDetachedN (Key key) (Nonce nonce) message =
+  withLithium $
   let ((_e, mac), ciphertext) = unsafePerformIO $
         Sized.allocRet $ \pc ->
         Sized.allocRet $ \pmac ->
@@ -260,7 +260,8 @@ secretBoxDetachedN (Key key) (Nonce nonce) message = withLithium $
 
 openSecretBoxDetachedN :: forall l b. (KnownNat l, ByteArray b)
                        => Key -> Nonce -> Mac -> Sized l b -> Maybe (SecretN l)
-openSecretBoxDetachedN (Key key) (Nonce nonce) (Mac mac) ciphertext = withLithium $
+openSecretBoxDetachedN (Key key) (Nonce nonce) (Mac mac) ciphertext =
+  withLithium $
   let (e, message) = unsafePerformIO $
         allocSecretN $ \pm ->
         withSecret key $ \pk ->

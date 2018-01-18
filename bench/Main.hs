@@ -20,7 +20,7 @@ main = do
   signToEval <- signEnv
   signKey <- evaluate $ force signToEval
 
-  defaultMain $
+  defaultMain
     [ benchBox boxKeys
     , benchHash
     , benchSign signKey

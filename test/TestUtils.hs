@@ -71,9 +71,9 @@ noCollisions f =
 
 
 roundtrips :: (Eq a, Show a) => (a -> b) -> (b -> Maybe a) -> a -> Expectation
-roundtrips f g = \m ->
+roundtrips f g m =
   g (f m) `shouldBe` Just m
 
 noPerturbedRoundtrip :: (Eq a, Show a, ByteArray b) => (a -> b) -> (b -> Maybe a) -> a -> Perturb -> Expectation
-noPerturbedRoundtrip f g = \m p ->
+noPerturbedRoundtrip f g m p =
   g (perturb p $ f m) `shouldBe` Nothing

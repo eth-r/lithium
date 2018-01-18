@@ -1,6 +1,4 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
@@ -92,7 +90,7 @@ shortHash (Key key) m = withLithium $
         sodium_shorthash pdigest
                          pmessage mlen
                          pkey
-  in (Digest result)
+  in Digest result
 
 type DigestBytes = 8
 digestBytes :: ByteSize DigestBytes

@@ -93,7 +93,7 @@ authSpec = parallel $ do
               perturbed = perturb p msg
           in O.verify key mac perturbed `shouldBe` False
 
-    describe "streamingAuth" $ do
+    describe "streamingAuth" $
 
       prop "is equivalent to authenticating the data directly" $
         \chunks key ->
@@ -101,12 +101,12 @@ authSpec = parallel $ do
               directMac = O.auth key (BS.concat chunks)
           in streamMac `shouldBe` directMac
 
-  describe "byte sizes" $ do
+  describe "byte sizes" $
 
     it "has matching type-level and value-level sizes" $ do
-      (fromIntegral . natVal) S.macBytes `shouldBe` S.macSize
-      (fromIntegral . natVal) S.keyBytes `shouldBe` S.keySize
+      theNat @S.MacBytes `shouldBe` S.macSize
+      theNat @S.KeyBytes `shouldBe` S.keySize
 
-      (fromIntegral . natVal) O.macBytes `shouldBe` O.macSize
-      (fromIntegral . natVal) O.keyBytes `shouldBe` O.keySize
-      (fromIntegral . natVal) O.stateBytes `shouldBe` O.stateSize
+      theNat @O.MacBytes `shouldBe` O.macSize
+      theNat @O.KeyBytes `shouldBe` O.keySize
+      theNat @O.StateBytes `shouldBe` O.stateSize

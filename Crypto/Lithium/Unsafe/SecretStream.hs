@@ -1,11 +1,6 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_HADDOCK hide, show-extensions #-}
 {-|
@@ -66,7 +61,7 @@ import Data.ByteArray as B
 import Data.ByteArray.Sized as Sized
 
 import Control.DeepSeq
-import Foundation hiding (splitAt)
+import Foundation
 
 {-|
 Secretstream message tag
@@ -154,11 +149,12 @@ secretStreamPush (State state) tag message aad =
         copySecretN state $ \pstate' ->
         withByteArray message $ \pmessage ->
         withByteArray aad $ \paad ->
+        void $
         sodium_secretstream_push pstate'
                                  pctext nullPtr
                                  pmessage (fromIntegral mlen)
                                  paad (fromIntegral alen)
-                                 ctag >> return ()
+                                 ctag
 
   in (ciphertext, State state')
 

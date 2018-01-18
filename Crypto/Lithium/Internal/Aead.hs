@@ -1,24 +1,14 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 module Crypto.Lithium.Internal.Aead
-  ( aead_keygen
-  , aead_encrypt
-  , aead_decrypt
-  , aead_detached
-  , aead_open_detached
+  ( keygen
+  , encrypt
+  , decrypt
+  , detached
+  , openDetached
 
-  , aead_keybytes
-  , aead_macbytes
-  , aead_noncebytes
-
-  -- , sodium_aead_keygen
-  -- , sodium_aead_encrypt
-  -- , sodium_aead_decrypt
-  -- , sodium_aead_detached
-  -- , sodium_aead_open_detached
-
-  -- , sodium_aead_keybytes
-  -- , sodium_aead_macbytes
-  -- , sodium_aead_noncebytes
+  , sodium_aead_keybytes
+  , sodium_aead_macbytes
+  , sodium_aead_noncebytes
   ) where
 
 import Foundation
@@ -30,8 +20,8 @@ foreign import ccall "crypto_aead_xchacha20poly1305_ietf_keygen"
                      -- ^ Key output buffer
                      -> IO CInt
 
-aead_keygen :: Ptr CChar -> IO ()
-aead_keygen key = sodium_aead_keygen key >> return ()
+keygen :: Ptr CChar -> IO ()
+keygen key = void $ sodium_aead_keygen key
 
 foreign import ccall "crypto_aead_xchacha20poly1305_ietf_encrypt"
   sodium_aead_encrypt :: Ptr CChar
@@ -54,18 +44,18 @@ foreign import ccall "crypto_aead_xchacha20poly1305_ietf_encrypt"
                       -- ^ Key input buffer
                       -> IO CInt
 
-aead_encrypt :: Ptr CChar
-             -> Ptr CChar
-             -> Int
-             -> Ptr CChar
-             -> Int
-             -> Ptr CChar
-             -> Ptr CChar
-             -> IO Int
-aead_encrypt ciphertext
-             message mlen
-             aad alen
-             nonce key =
+encrypt :: Ptr CChar
+        -> Ptr CChar
+        -> Int
+        -> Ptr CChar
+        -> Int
+        -> Ptr CChar
+        -> Ptr CChar
+        -> IO Int
+encrypt ciphertext
+        message mlen
+        aad alen
+        nonce key =
   fromIntegral <$> sodium_aead_encrypt ciphertext nullPtr
                                        message (fromIntegral mlen)
                                        aad (fromIntegral alen)
@@ -92,18 +82,18 @@ foreign import ccall "crypto_aead_xchacha20poly1305_ietf_decrypt"
                       -- ^ Key input buffer
                       -> IO CInt
 
-aead_decrypt :: Ptr CChar
-             -> Ptr CChar
-             -> Int
-             -> Ptr CChar
-             -> Int
-             -> Ptr CChar
-             -> Ptr CChar
-             -> IO Int
-aead_decrypt message
-             ciphertext clen
-             aad alen
-             nonce key =
+decrypt :: Ptr CChar
+        -> Ptr CChar
+        -> Int
+        -> Ptr CChar
+        -> Int
+        -> Ptr CChar
+        -> Ptr CChar
+        -> IO Int
+decrypt message
+        ciphertext clen
+        aad alen
+        nonce key =
   fromIntegral <$> sodium_aead_decrypt message nullPtr nullPtr
                                        ciphertext (fromIntegral clen)
                                        aad (fromIntegral alen)
@@ -132,19 +122,19 @@ foreign import ccall "crypto_aead_xchacha20poly1305_ietf_encrypt_detached"
                        -- ^ Key input buffer
                        -> IO CInt
 
-aead_detached :: Ptr CChar
-              -> Ptr CChar
-              -> Ptr CChar
-              -> Int
-              -> Ptr CChar
-              -> Int
-              -> Ptr CChar
-              -> Ptr CChar
-              -> IO Int
-aead_detached ciphertext mac
-              message mlen
-              aad alen
-              nonce key =
+detached :: Ptr CChar
+         -> Ptr CChar
+         -> Ptr CChar
+         -> Int
+         -> Ptr CChar
+         -> Int
+         -> Ptr CChar
+         -> Ptr CChar
+         -> IO Int
+detached ciphertext mac
+         message mlen
+         aad alen
+         nonce key =
   fromIntegral <$> sodium_aead_detached ciphertext
                                         mac nullPtr
                                         message (fromIntegral mlen)
@@ -173,20 +163,20 @@ foreign import ccall "crypto_aead_xchacha20poly1305_ietf_decrypt_detached"
                             -- ^ Key input buffer
                             -> IO CInt
 
-aead_open_detached :: Ptr CChar
-                   -> Ptr CChar
-                   -> Int
-                   -> Ptr CChar
-                   -> Ptr CChar
-                   -> Int
-                   -> Ptr CChar
-                   -> Ptr CChar
-                   -> IO Int
-aead_open_detached message
-                   ciphertext clen
-                   mac
-                   aad alen
-                   nonce key =
+openDetached :: Ptr CChar
+             -> Ptr CChar
+             -> Int
+             -> Ptr CChar
+             -> Ptr CChar
+             -> Int
+             -> Ptr CChar
+             -> Ptr CChar
+             -> IO Int
+openDetached message
+              ciphertext clen
+              mac
+              aad alen
+              nonce key =
   fromIntegral <$> sodium_aead_open_detached message nullPtr
                                              ciphertext (fromIntegral clen)
                                              mac
@@ -196,17 +186,8 @@ aead_open_detached message
 foreign import ccall "crypto_aead_xchacha20poly1305_ietf_keybytes"
   sodium_aead_keybytes :: CSize
 
-aead_keybytes :: Int
-aead_keybytes = fromIntegral sodium_aead_keybytes
-
 foreign import ccall "crypto_aead_xchacha20poly1305_ietf_abytes"
   sodium_aead_macbytes :: CSize
 
-aead_macbytes :: Int
-aead_macbytes = fromIntegral sodium_aead_macbytes
-
 foreign import ccall "crypto_aead_xchacha20poly1305_ietf_npubbytes"
   sodium_aead_noncebytes :: CSize
-
-aead_noncebytes :: Int
-aead_noncebytes = fromIntegral sodium_aead_noncebytes

@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1286d3170d949fa0041e016863261bf21c0fc4b376cdac59a7de7f01d57d6518
+-- hash: 92bd63661ba9d117781433dffa765008f202a738f8aa54b5461e7a10e4e80f87
 
 name:           lithium
 version:        0.0.0
@@ -30,7 +30,7 @@ source-repository head
   location: https://github.com/eth-r/lithium
 
 library
-  default-extensions: NoImplicitPrelude OverloadedStrings
+  default-extensions: DataKinds GeneralizedNewtypeDeriving MultiParamTypeClasses NoImplicitPrelude OverloadedStrings ScopedTypeVariables TypeApplications TypeFamilies TypeOperators
   ghc-options: -Wall -Werror
   extra-libraries:
       sodium

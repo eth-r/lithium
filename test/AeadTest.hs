@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 module AeadTest (aeadSpec) where
 
 import Test.Hspec.QuickCheck
@@ -27,7 +28,7 @@ instance Arbitrary Nonce where
 aeadSpec :: Spec
 aeadSpec = parallel $ do
 
-  describe "Aead" $ do
+  describe "Aead" $
 
     describe "aead" $ do
 
@@ -153,10 +154,10 @@ aeadSpec = parallel $ do
               xoredCiphertexts = B.xor (ct1 :: ByteString) (ct2 :: ByteString)
           in xoredCiphertexts `shouldBe` (B.xor msg1 msg2 :: ByteString)
 
-  describe "byte sizes" $ do
+  describe "byte sizes" $
 
     it "has matching type-level and value-level sizes" $ do
-      (fromIntegral . natVal) keyBytes   `shouldBe` keySize
-      (fromIntegral . natVal) macBytes   `shouldBe` macSize
-      (fromIntegral . natVal) nonceBytes `shouldBe` nonceSize
-      (fromIntegral . natVal) tagBytes   `shouldBe` tagSize
+      theNat @KeyBytes   `shouldBe` keySize
+      theNat @MacBytes   `shouldBe` macSize
+      theNat @NonceBytes `shouldBe` nonceSize
+      theNat @TagBytes   `shouldBe` tagSize

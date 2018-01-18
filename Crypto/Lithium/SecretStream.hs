@@ -1,8 +1,3 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-|
 Module      : Crypto.Lithium.SecretStream
 Description : Symmetric-key encryption for stream of related messages
@@ -113,11 +108,11 @@ secretStreamReceive' _ [] = []
 secretStreamReceive' state chunks@((ctext, aad) : chunks') =
   case U.secretStreamPull state ctext (fromPlaintext aad :: BS.ByteString) of
     Nothing ->
-      Left (DecryptFailure state chunks) : []
+      [Left (DecryptFailure state chunks)]
     Just ((tag, message), state') ->
       case toPlaintext message of
         Nothing ->
-          Left (DecodeFailure message state' chunks') : []
+          [Left (DecodeFailure message state' chunks')]
         Just plaintext ->
           Right (plaintext, aad) : secretStreamFinish tag state' chunks'
 
@@ -125,9 +120,9 @@ secretStreamFinish :: (Plaintext p, Plaintext a)
                    => U.Tag -> U.State -> [(BS.ByteString, a)] -> [Either (SecretStreamError a) (p, a)]
 secretStreamFinish U.Final _ [] = []
 secretStreamFinish U.Final state chunks =
-  Left (EarlyFinalTag state chunks) : []
+  [Left (EarlyFinalTag state chunks)]
 secretStreamFinish _ state [] =
-  Left (StreamCutShort state) : []
+  [Left (StreamCutShort state)]
 secretStreamFinish _ state chunks = secretStreamReceive' state chunks
 
 

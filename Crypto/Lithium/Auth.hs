@@ -1,11 +1,3 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-|
 Module      : Crypto.Lithium.Auth
@@ -43,7 +35,6 @@ import qualified Crypto.Lithium.Unsafe.Auth as U
 import Foundation hiding (Foldable)
 
 import Crypto.Lithium.Internal.Util
-import Crypto.Lithium.Unsafe.Types
 
 import Control.DeepSeq
 import Data.ByteArray as B

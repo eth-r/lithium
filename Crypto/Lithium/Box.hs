@@ -1,8 +1,3 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-|
 Module      : Crypto.Lithium.Box
 Description : Public-key authenticated encryption
@@ -78,7 +73,7 @@ import Crypto.Lithium.Types
 import Data.ByteArray as B
 import Data.ByteString as BS
 
-import Foundation hiding (splitAt)
+import Foundation
 import Control.DeepSeq
 
 {-|

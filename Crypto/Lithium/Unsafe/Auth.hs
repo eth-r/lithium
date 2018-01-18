@@ -1,12 +1,5 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE FlexibleContexts #-}
+-- {-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_HADDOCK hide #-}
 {-|
 Module      : Crypto.Lithium.Unsafe.Auth
@@ -47,7 +40,7 @@ import Data.ByteArray as B
 import Data.ByteArray.Sized as Sized
 
 import Control.DeepSeq
-import Foundation hiding (splitAt)
+import Foundation
 
 newtype Key = Key
   { unKey :: SecretN KeyBytes } deriving (Show, Eq, NFData)
@@ -94,7 +87,7 @@ auth (Key key) message =
         sodium_auth pmac
                     pmessage mlen
                     pkey
-  in (Mac mac)
+  in Mac mac
 
 {-|
 Verify the authentication tag of a message

@@ -1,9 +1,5 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_HADDOCK hide, show-extensions #-}
 {-|
 Module      : Crypto.Lithium.Unsafe.Box
@@ -395,7 +391,7 @@ precalculate (PublicKey pk) (SecretKey sk) =
         withByteArray pk $ \ppk ->
         sodium_box_beforenm pshared
                             ppk psk
-  in (SharedKey shared)
+  in SharedKey shared
 
 box' :: ByteOp m c
      => SharedKey -> Nonce -> m -> c

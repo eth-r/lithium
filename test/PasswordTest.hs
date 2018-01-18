@@ -39,7 +39,7 @@ instance Arbitrary Salt where
 
 passwordSpec :: Spec
 passwordSpec = parallel $ do
-  describe "Password" $ do
+  describe "Password" $
 
     context "Password storage" $ do
 
@@ -67,7 +67,7 @@ passwordSpec = parallel $ do
           pwstr <- S.storePassword interactivePolicy (Password "hunter2")
           S.verifyPassword pwstr (Password "password") `shouldBe` False
 
-      describe "needsRehash" $ do
+      describe "needsRehash" $
 
         it "checks if password string needs rehashing" $ do
           let oldPolicy = interactivePolicy
@@ -78,7 +78,7 @@ passwordSpec = parallel $ do
           S.needsRehash newPolicy oldstr `shouldBe` True
           S.needsRehash newPolicy newstr `shouldBe` False
 
-  describe "Unsafe.Password" $ do
+  describe "Unsafe.Password" $
 
     context "Password protection" $ do
 
@@ -116,9 +116,9 @@ passwordSpec = parallel $ do
         protected <- passwordProtect interactivePolicy mypassword mysecret
         passwordOpen falseGuess protected `shouldBe` Nothing
 
-  describe "byte sizes" $ do
+  describe "byte sizes" $
 
     it "has matching type-level and value-level sizes" $ do
-      (fromIntegral . natVal) saltBytes `shouldBe` saltSize
-      (fromIntegral . natVal) U.tagBytes `shouldBe` U.tagSize
+      theNat @SaltBytes `shouldBe` saltSize
+      theNat @U.TagBytes `shouldBe` U.tagSize
       theNat @PasswordStringBytes `shouldBe` passwordStringSize

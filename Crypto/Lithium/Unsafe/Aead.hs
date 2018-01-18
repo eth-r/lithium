@@ -1,11 +1,4 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_HADDOCK hide #-}
 {-|
@@ -61,7 +54,7 @@ module Crypto.Lithium.Unsafe.Aead
   , macSize
   ) where
 
-import Crypto.Lithium.Internal.Aead
+import Crypto.Lithium.Internal.Aead as Aead
 import Crypto.Lithium.Internal.Util
 import Crypto.Lithium.Unsafe.Types
 
@@ -69,7 +62,7 @@ import Data.ByteArray as B
 import Data.ByteArray.Sized as Sized
 
 import Control.DeepSeq
-import Foundation hiding (splitAt)
+import Foundation
 
 newtype Key = Key (SecretN KeyBytes) deriving (Show, Eq, NFData)
 
@@ -102,7 +95,7 @@ newKey :: IO Key
 newKey = withLithium $ do
   (_e, k) <-
     allocSecretN $ \pk ->
-    aead_keygen pk
+    keygen pk
   return $ Key k
 
 newNonce :: IO Nonce
@@ -127,7 +120,7 @@ aead (Key key) (Nonce nonce) message aad =
         withByteArray nonce $ \pn ->
         withByteArray message $ \pm ->
         withByteArray aad $ \pa ->
-        aead_encrypt pc
+        Aead.encrypt pc
                      pm mlen
                      pa alen
                      pn pk
@@ -144,7 +137,7 @@ openAead (Key k) (Nonce n) ciphertext aad =
         withByteArray n $ \pn ->
         withByteArray ciphertext $ \pc ->
         withByteArray aad $ \pa ->
-        aead_decrypt pm
+        Aead.decrypt pm
                      pc (fromIntegral $ B.length ciphertext)
                      pa (fromIntegral $ B.length aad)
                      pn pk
@@ -186,7 +179,7 @@ openAeadPrefix (Key key) ciphertext aad =
               -- ^ Nonce begins at byte 0
               pctext = plusPtr pc nonceSize
               -- ^ Mac and encrypted message after nonce
-          aead_decrypt pmessage
+          Aead.decrypt pmessage
                        pctext clen
                        padata alen
                        pnonce pkey
@@ -218,7 +211,7 @@ aeadN (Key key) (Nonce nonce) secret aad =
         withByteArray nonce $ \pn ->
         withSecret secret $ \pm ->
         withByteArray aad $ \pa ->
-        aead_encrypt pc
+        Aead.encrypt pc
                      pm mlen
                      pa alen
                      pn pk
@@ -240,7 +233,7 @@ openAeadN (Key k) (Nonce n) ciphertext aad =
         withByteArray n $ \pn ->
         withByteArray ciphertext $ \pc ->
         withByteArray aad $ \pa ->
-        aead_decrypt pm
+        Aead.decrypt pm
                      pc clen
                      pa alen
                      pn pk
@@ -264,7 +257,7 @@ aeadDetached (Key key) (Nonce nonce) message aad =
         withByteArray nonce $ \pn ->
         withByteArray message $ \pm ->
         withByteArray aad $ \pa ->
-        aead_detached pc pmac
+        Aead.detached pc pmac
                       pm mlen
                       pa alen
                       pn pk
@@ -285,10 +278,10 @@ openAeadDetached (Key key) (Nonce nonce) (Mac mac) ciphertext aad =
         withByteArray mac $ \pmac ->
         withByteArray ciphertext $ \pc ->
         withByteArray aad $ \pa ->
-        aead_open_detached pm
-                           pc clen
-                           pmac pa alen
-                           pn pk
+        Aead.openDetached pm
+                          pc clen
+                          pmac pa alen
+                          pn pk
   in case e of
     0 -> Just message
     _ -> Nothing
@@ -308,7 +301,7 @@ aeadDetachedN (Key key) (Nonce nonce) message aad =
         withByteArray nonce $ \pn ->
         withSecret message $ \pm ->
         withByteArray aad $ \pa ->
-        aead_detached pc pmac
+        Aead.detached pc pmac
                       pm mlen
                       pa alen
                       pn pk
@@ -329,10 +322,10 @@ openAeadDetachedN (Key key) (Nonce nonce) (Mac mac) ciphertext aad =
         withByteArray mac $ \pmac ->
         withByteArray ciphertext $ \pc ->
         withByteArray aad $ \pa ->
-        aead_open_detached pm
-                           pc clen
-                           pmac pa alen
-                           pn pk
+        Aead.openDetached pm
+                          pc clen
+                          pmac pa alen
+                          pn pk
   in case e of
     0 -> Just message
     _ -> Nothing
@@ -344,7 +337,7 @@ keyBytes :: ByteSize KeyBytes
 keyBytes = ByteSize
 -- | Key length as a regular value
 keySize :: Int
-keySize = fromInteger $ fromIntegral aead_keybytes
+keySize = fromIntegral sodium_aead_keybytes
 
 -- | Length of a 'Mac' as a type-level constant
 type MacBytes = 16
@@ -353,7 +346,7 @@ macBytes :: ByteSize MacBytes
 macBytes = ByteSize
 -- | Mac length as a regular value
 macSize :: Int
-macSize = fromInteger $ fromIntegral aead_macbytes
+macSize = fromIntegral sodium_aead_macbytes
 
 -- | Length of a 'Nonce' as a type-level constant
 type NonceBytes = 24
@@ -362,4 +355,4 @@ nonceBytes :: ByteSize NonceBytes
 nonceBytes = ByteSize
 -- | Nonce length as a regular value
 nonceSize :: Int
-nonceSize = fromInteger $ fromIntegral aead_noncebytes
+nonceSize = fromIntegral sodium_aead_noncebytes

@@ -23,8 +23,15 @@ extra-source-files:
 
 library:
   default-extensions:
+    - DataKinds
+    - GeneralizedNewtypeDeriving
+    - MultiParamTypeClasses
     - NoImplicitPrelude
     - OverloadedStrings
+    - ScopedTypeVariables
+    - TypeApplications
+    - TypeFamilies
+    - TypeOperators
   ghc-options:
     - -Wall
     - -Werror

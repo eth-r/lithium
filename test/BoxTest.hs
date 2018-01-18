@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 module BoxTest (boxSpec) where
 
 import Test.Hspec.QuickCheck
@@ -81,9 +82,9 @@ boxSpec = parallel $ do
           let decrypted = S.openBox' alices ciphertext
           decrypted `shouldBe` Just msg
 
-    describe "sealBox" $ do
+    describe "sealBox" $
 
-      prop "encrypts" $
+      prop "roundtrips" $
         \alice (Message msg) -> do
           ciphertext <- S.sealBox (publicKey alice) msg
           let decrypted = S.openSealedBox alice ciphertext
@@ -187,13 +188,13 @@ boxSpec = parallel $ do
               xoredCiphertexts = B.xor (ct1 :: ByteString) (ct2 :: ByteString)
           in xoredCiphertexts `shouldBe` (B.xor msg1 msg2 :: ByteString)
 
-  describe "byte sizes" $ do
+  describe "byte sizes" $
 
     it "has matching type-level and value-level sizes" $ do
-      (fromIntegral . natVal) publicKeyBytes `shouldBe` publicKeySize
-      (fromIntegral . natVal) secretKeyBytes `shouldBe` secretKeySize
-      (fromIntegral . natVal) macBytes       `shouldBe` macSize
-      (fromIntegral . natVal) nonceBytes     `shouldBe` nonceSize
-      (fromIntegral . natVal) seedBytes      `shouldBe` seedSize
-      (fromIntegral . natVal) sharedKeyBytes `shouldBe` sharedKeySize
-      (fromIntegral . natVal) tagBytes       `shouldBe` tagSize
+      theNat @PublicKeyBytes `shouldBe` publicKeySize
+      theNat @SecretKeyBytes `shouldBe` secretKeySize
+      theNat @MacBytes       `shouldBe` macSize
+      theNat @NonceBytes     `shouldBe` nonceSize
+      theNat @SeedBytes      `shouldBe` seedSize
+      theNat @SharedKeyBytes `shouldBe` sharedKeySize
+      theNat @TagBytes       `shouldBe` tagSize

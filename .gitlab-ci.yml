@@ -25,5 +25,5 @@ coverage:
     - stack install .
     - cd ..
     - stack test --coverage
-    - codecov-haskell lithium-tests
+    - stack exec codecov-haskell lithium-tests
   allow_failure: true

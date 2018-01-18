@@ -144,5 +144,5 @@ needsRehash = U.needsRehash
 Derive a key from a password
 -}
 derive :: (Deriveable k l, KnownNat l) => Password -> U.Salt -> U.Policy -> k
-derive (Password pw) salt policy =
-  U.derive pw salt policy
+derive (Password pw) =
+  U.derive pw

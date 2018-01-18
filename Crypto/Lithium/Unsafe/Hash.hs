@@ -1,12 +1,8 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_HADDOCK hide, show-extensions #-}
 {-|
@@ -135,7 +131,7 @@ genericHash key m = withLithium $
             sodium_generichash pdigest hashLength
                                pmessage mlen
                                pkey (fromIntegral $ secretLengthN k)
-  in (Digest result)
+  in Digest result
 
 newtype State (n :: Nat) = State (BytesN StateBytes) deriving (Eq, Ord, ByteArrayAccess)
 
@@ -154,25 +150,27 @@ genericHashInit key = withLithium $
             sodium_generichash_init pstate
                                     pkey (fromIntegral $ secretLengthN k)
                                     outLen
-  in (State result)
+  in State result
 
 genericHashUpdate :: forall n a. ByteArrayAccess a => State n -> a -> State n
 genericHashUpdate (State state) chunk = withLithium $
   let clen = fromIntegral $ B.length chunk
       state' = unsafePerformIO $
         Sized.copy state $ \pstate' ->
-        withByteArray chunk $ \pchunk ->
-        sodium_generichash_update pstate' pchunk clen >> return ()
-  in (State state')
+        withByteArray chunk $ \pchunk -> void $
+        sodium_generichash_update pstate'
+                                  pchunk clen
+  in State state'
 
 genericHashFinal :: forall n. DigestSized n => State n -> Digest n
 genericHashFinal (State state) = withLithium $
   let outLen = theNat @n
       (_state', digest) = unsafePerformIO $
         Sized.allocRet $ \pdigest ->
-        Sized.copy state $ \pstate' ->
-        sodium_generichash_final pstate' pdigest outLen >> return ()
-  in (Digest digest)
+        Sized.copy state $ \pstate' -> void $
+        sodium_generichash_final pstate'
+                                 pdigest outLen
+  in Digest digest
 
 streamingHash :: (Foldable t, DigestSized n, ByteArrayAccess a) => Maybe (Key k) -> t a -> Digest n
 streamingHash key t =

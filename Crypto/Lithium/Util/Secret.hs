@@ -3,14 +3,13 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_HADDOCK hide, show-extensions #-}
 {-|
@@ -23,7 +22,14 @@ Stability   : experimental
 Portability : unknown
 -}
 module Crypto.Lithium.Util.Secret
-  ( Secret(..)
+  ( Encoder
+  , Decoder
+  , decodeWith
+  , encodeWith
+  , decodeSecret
+  , encodeSecret
+
+  , Secret(..)
   , conceal
 
   , Plaintext(..)
@@ -56,6 +62,20 @@ import Data.ByteString as BS
 
 import Data.ByteArray.Sized as Sized
 
+type Encoder t = forall a. ByteArray a => t -> a
+type Decoder t = forall a. ByteArrayAccess a => a -> Maybe t
+
+decodeWith :: forall l t. KnownNat l => (BytesN l -> t) -> Decoder t
+decodeWith f = fmap f . Sized.asSized . B.convert
+
+encodeWith :: forall l t. KnownNat l => (t -> BytesN l) -> Encoder t
+encodeWith f = unSized . Sized.convert . f
+
+decodeSecret :: forall l t. KnownNat l => (SecretN l -> t) -> Decoder t
+decodeSecret f = fmap f . maybeConcealN . B.convert
+
+encodeSecret :: forall l t. KnownNat l => (t -> SecretN l) -> Encoder t
+encodeSecret f = unSized . revealN . f
 
 {-|
 Opaque type for secrets
@@ -121,7 +141,7 @@ class Plaintext p where
   fromPlaintext = B.convert
 
   withPlaintext :: p -> (Ptr p' -> IO e) -> IO e
-  withPlaintext p = B.withByteArray $ (fromPlaintext p :: ByteString)
+  withPlaintext p = B.withByteArray (fromPlaintext p :: ByteString)
 
   plaintextLength :: p -> Int
   plaintextLength p = B.length (fromPlaintext p :: ByteString)
@@ -145,7 +165,7 @@ type BytesN (n :: Nat) = Sized n Bytes
 Empty secret sized byte array
 -}
 emptySecretN :: SecretN 0
-emptySecretN = Conceal $ Sized.empty
+emptySecretN = Conceal Sized.empty
 
 {-|
 Allocate and initialize a sized secret byte array

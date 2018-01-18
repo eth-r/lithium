@@ -1,6 +1,3 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-|
 Module      : Crypto.Lithium.Hash
 Description : Secure general-purpose hash function
@@ -75,10 +72,10 @@ Digest resulting from 'genericHash' or 'keyedHash'
 newtype Digest t = Digest (U.Digest U.DigestBytes)
   deriving (Eq, Ord, Show, NFData, ByteArrayAccess)
 
-makeDigest :: BytesN U.DigestBytes -> (Digest t)
+makeDigest :: BytesN U.DigestBytes -> Digest t
 makeDigest = Digest . U.Digest
 
-unDigest :: (Digest t) -> BytesN U.DigestBytes
+unDigest :: Digest t -> BytesN U.DigestBytes
 unDigest (Digest d) = U.unDigest d
 
 instance Plaintext t => Plaintext (Digest t) where
@@ -110,10 +107,10 @@ type LongKey = U.Key LongKeyBytes
 newtype LongDigest t = LongDigest (U.Digest LongDigestBytes)
   deriving (Eq, Ord, Show, NFData, ByteArrayAccess)
 
-makeLongDigest :: BytesN LongDigestBytes -> (LongDigest t)
+makeLongDigest :: BytesN LongDigestBytes -> LongDigest t
 makeLongDigest = LongDigest . U.Digest
 
-unLongDigest :: (LongDigest t) -> BytesN LongDigestBytes
+unLongDigest :: LongDigest t -> BytesN LongDigestBytes
 unLongDigest (LongDigest d) = U.unDigest d
 
 instance Plaintext t => Plaintext (LongDigest t) where
