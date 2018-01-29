@@ -11,6 +11,7 @@ module Crypto.Lithium.Box
   ( -- * Types
     U.Keypair(..)
   , U.newKeypair
+  , U.seedKeypair
 
   , U.SecretKey(..)
 
