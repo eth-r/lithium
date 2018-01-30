@@ -144,14 +144,20 @@ data Keypair = Keypair
 instance NFData Keypair where
   rnf (Keypair s p) = rnf s `seq` rnf p
 
-asKeypair :: SecretN KeypairBytes -> Keypair
-asKeypair s =
+makeKeypair :: SecretN KeypairBytes -> Keypair
+makeKeypair s =
   let (sk, pk) = splitSecretN s
   in Keypair (SecretKey sk) (PublicKey $ revealN pk)
 
-fromKeypair :: Keypair -> SecretN KeypairBytes
-fromKeypair (Keypair (SecretKey sk) (PublicKey pk)) =
+unKeypair :: Keypair -> SecretN KeypairBytes
+unKeypair (Keypair (SecretKey sk) (PublicKey pk)) =
   Sized.append <$> sk <*> concealN pk
+
+asKeypair :: Decoder Keypair
+asKeypair = decodeSecret makeKeypair
+
+fromKeypair :: Encoder Keypair
+fromKeypair = encodeSecret unKeypair
 
 {-|
 Seed for deriving keypairs from
@@ -170,14 +176,14 @@ newSeed = Seed <$> randomSecretN
 {-|
 Convert a secret byte array to a seed
 -}
-asSeed :: SecretN SeedBytes -> Seed
-asSeed = Seed
+asSeed :: Decoder Seed
+asSeed = decodeSecret Seed
 
 {-|
 Convert a seed to a secret byte array
 -}
-fromSeed :: Seed -> SecretN SeedBytes
-fromSeed (Seed s) = s
+fromSeed :: Encoder Seed
+fromSeed = encodeSecret unSeed
 
 newtype Signature = Signature
   { unSignature :: BytesN SignatureBytes } deriving (Show, Eq, Ord)
