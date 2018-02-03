@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DataKinds #-}
 module AeadTest (aeadSpec) where
 
 import Test.Hspec.QuickCheck
@@ -15,6 +16,7 @@ import Crypto.Lithium.Unsafe.Types
 import Control.Monad.IO.Class
 import Data.ByteArray (Bytes)
 import qualified Data.ByteArray as B
+import qualified Data.ByteArray.Sized as Sized
 import Data.ByteString (ByteString)
 
 import TestUtils
@@ -153,6 +155,97 @@ aeadSpec = parallel $ do
               (ct2, mac2) = U.aeadDetached key nonce msg2 aad2
               xoredCiphertexts = B.xor (ct1 :: ByteString) (ct2 :: ByteString)
           in xoredCiphertexts `shouldBe` (B.xor msg1 msg2 :: ByteString)
+
+    describe "aeadN" $ do
+
+      prop "decrypts" $
+        \key nonce (SecretMessageN msg) (MessageN aad) ->
+          let ciphertext = U.aeadN key nonce msg aad
+              decrypted = U.openAeadN key nonce ciphertext aad
+          in decrypted `shouldBe` Just msg
+
+      prop "doesn't decrypt when ciphertext perturbed" $
+        \key nonce (SecretMessageN msg) (MessageN aad) p ->
+          let ciphertext = U.aeadN key nonce msg aad
+              perturbed = perturbN p ciphertext
+              decrypted = U.openAeadN key nonce perturbed aad
+          in decrypted `shouldBe` Nothing
+
+      prop "doesn't decrypt when aad perturbed" $
+        \key nonce (SecretMessageN msg) (MessageN aad) p ->
+          perturbN p aad /= aad ==>
+          let ciphertext = U.aeadN key nonce msg aad
+              perturbed = perturbN p aad
+              decrypted = U.openAeadN key nonce ciphertext perturbed
+          in decrypted `shouldBe` Nothing
+
+      prop "doesn't decrypt with wrong recipient" $
+        \key1 key2 nonce (SecretMessageN msg) (MessageN aad) ->
+          let ciphertext = U.aeadN key1 nonce msg aad
+              decrypted = U.openAeadN key2 nonce ciphertext aad
+          in decrypted `shouldBe` Nothing
+
+      prop "doesn't decrypt with wrong nonce" $
+        \key nonce1 nonce2 (SecretMessageN msg) (MessageN aad) ->
+          let ciphertext = U.aeadN key nonce1 msg aad
+              decrypted = U.openAeadN key nonce2 ciphertext aad
+          in decrypted `shouldBe` Nothing
+
+      prop "DANGER! is vulnerable to nonce reuse" $
+        \key nonce (SecretMessageN msg1) (SecretMessageN msg2) (MessageN aad) ->
+          msg1 /= msg2 ==>
+          let ct1 = U.aeadN key nonce msg1 aad
+              ct2 = U.aeadN key nonce msg2 aad
+              xoredCiphertexts = Sized.xor ct1 ct2
+          in Sized.take xoredCiphertexts `shouldBe` Sized.convert (Sized.xor (reveal msg1) (reveal msg2))
+
+
+    describe "aeadDetachedN" $ do
+
+      prop "decrypts" $
+        \key nonce (SecretMessageN msg) (MessageN aad) ->
+          let (ciphertext, mac) = U.aeadDetachedN key nonce msg aad
+              decrypted = U.openAeadDetachedN key
+                nonce mac ciphertext aad
+          in decrypted `shouldBe` Just msg
+
+      prop "doesn't decrypt when ciphertext perturbed" $
+        \key nonce (SecretMessageN msg) (MessageN aad) p ->
+          (perturbN p <$> msg) /= msg ==>
+          let (ciphertext, mac) = U.aeadDetachedN key nonce msg aad
+              decrypted = U.openAeadDetachedN key nonce mac
+                (perturbN p ciphertext) aad
+          in decrypted `shouldBe` Nothing
+
+      prop "doesn't decrypt when mac perturbed" $
+        \key nonce (SecretMessageN msg) (MessageN aad) p ->
+          let (ciphertext, mac) = U.aeadDetachedN key nonce msg aad
+              decrypted = U.openAeadDetachedN key nonce
+                (U.asMac $ perturbN p $ U.fromMac mac)
+                ciphertext aad
+          in decrypted `shouldBe` Nothing
+
+      prop "doesn't decrypt with wrong key" $
+        \key1 key2 nonce (SecretMessageN msg) (MessageN aad) ->
+          let (ciphertext, mac) = U.aeadDetachedN key1 nonce msg aad
+              decrypted = U.openAeadDetachedN key2
+                nonce mac ciphertext aad
+          in decrypted `shouldBe` Nothing
+
+      prop "doesn't decrypt with wrong nonce" $
+        \key nonce1 nonce2 (SecretMessageN msg) (MessageN aad) ->
+          let (ciphertext, mac) = U.aeadDetachedN key nonce1 msg aad
+              decrypted = U.openAeadDetachedN key
+                nonce2 mac ciphertext aad
+          in decrypted `shouldBe` Nothing
+
+      prop "DANGER! is vulnerable to nonce reuse" $
+        \key nonce (SecretMessageN msg1) (SecretMessageN msg2) (MessageN aad1) (MessageN aad2)->
+          msg1 /= msg2 ==>
+          let (ct1, mac1) = U.aeadDetachedN key nonce msg1 aad1
+              (ct2, mac2) = U.aeadDetachedN key nonce msg2 aad2
+              xoredCiphertexts = Sized.convert $ Sized.xor ct1 ct2
+          in xoredCiphertexts `shouldBe` Sized.xor (reveal msg1) (reveal msg2)
 
   describe "byte sizes" $
 

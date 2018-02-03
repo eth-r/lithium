@@ -196,9 +196,7 @@ instance ByteArrayAccess Signature where
   withByteArray (Signature s) = withByteArray s
 
 instance Plaintext Signature where
-  toPlaintext bs = do
-    bsN <- toPlaintext bs
-    return $ Signature bsN
+  toPlaintext bs = Signature <$> toPlaintext bs
   fromPlaintext = fromPlaintext . unSignature
 
 asSignature :: Decoder Signature

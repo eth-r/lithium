@@ -50,10 +50,8 @@ your security in any way.
 aead :: ( Plaintext message
         , ByteArrayAccess aad )
      => Key -> message -> aad -> IO (AeadBox aad message)
-aead key message aad = do
-  ciphertext <- U.aeadRandom key
-    (fromPlaintext message :: ByteString) aad
-  return $ AeadBox ciphertext
+aead key message aad = AeadBox <$>
+  U.aeadRandom key (fromPlaintext message :: ByteString) aad
 
 {-|
 Open an 'AeadBox' and verify its associated data

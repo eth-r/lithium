@@ -13,6 +13,8 @@ module Crypto.Lithium.Hash (
   , newKey
 
   , Digest
+  , makeDigest
+  , unDigest
   , asDigest
   , fromDigest
 

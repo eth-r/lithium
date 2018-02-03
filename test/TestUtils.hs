@@ -25,7 +25,7 @@ instance Arbitrary ByteString where
   arbitrary = BS.pack <$> arbitrary
 
 instance (KnownNat l, ByteArray b) => Arbitrary (Sized l b) where
-  arbitrary = Sized.coerce . B.pack <$> replicateM (theNat @l) arbitrary
+  arbitrary = Sized.coerce . B.pack <$> vector (theNat @l)
 
 instance Arbitrary a => Arbitrary (Secret a) where
   arbitrary = Conceal <$> arbitrary
@@ -35,9 +35,20 @@ newtype Perturb = Perturb ByteString deriving (Eq, Show, Ord, Monoid, ByteArray,
 newtype PerturbN l = PerturbN (Sized l ByteString) deriving (Eq, Show, Ord)
 
 newtype Message = Message ByteString deriving (Eq, Show, Ord, Monoid)
+newtype MessageN = MessageN (BytesN 32) deriving (Eq, Show, Ord)
+newtype SecretMessageN = SecretMessageN (SecretN 32) deriving (Eq, Show, Ord)
 
 instance Arbitrary Message where
   arbitrary = Message . BS.cons 1 <$> arbitrary
+
+instance Arbitrary MessageN where
+  arbitrary = MessageN <$> arbitrary
+
+instance Arbitrary SecretMessageN where
+  arbitrary = SecretMessageN <$> arbitrary
+
+valueOf :: KnownNat n => proxy n -> Int
+valueOf = fromIntegral . natVal
 
 perturb :: forall a. ByteArray a => Perturb -> a -> a
 perturb (Perturb with) target =
@@ -70,9 +81,13 @@ noCollisions f =
   f b1 `shouldNotBe` f b2
 
 
-roundtrips :: (Eq a, Show a) => (a -> b) -> (b -> Maybe a) -> a -> Expectation
-roundtrips f g m =
-  g (f m) `shouldBe` Just m
+roundtrips :: (Eq a, Show a, Arbitrary a) => String -> (b -> Maybe a) -> (a -> b) -> Spec
+roundtrips name f g =
+  prop (name ++ " roundtrips") $ \m -> f (g m) `shouldBe` Just m
+
+encodingRoundtrips :: (Eq a, Show a, Arbitrary a) => String -> (ByteString -> Maybe a) -> (a -> ByteString) -> Spec
+encodingRoundtrips name f g =
+  prop ("(as" ++ name ++ " . from" ++ name ++ ") roundtrips") $ \m -> f (g m) `shouldBe` Just m
 
 noPerturbedRoundtrip :: (Eq a, Show a, ByteArray b) => (a -> b) -> (b -> Maybe a) -> a -> Perturb -> Expectation
 noPerturbedRoundtrip f g m p =

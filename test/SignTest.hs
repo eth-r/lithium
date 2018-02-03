@@ -22,6 +22,12 @@ import TestUtils
 instance Arbitrary Keypair where
   arbitrary = U.seedKeypair <$> arbitrary
 
+instance Arbitrary PublicKey where
+  arbitrary = publicKey <$> arbitrary
+
+instance Arbitrary SecretKey where
+  arbitrary = secretKey <$> arbitrary
+
 instance Arbitrary Seed where
   arbitrary = U.Seed <$> arbitrary
 
@@ -80,6 +86,15 @@ signSpec = parallel $ do
           let signature = S.sign (secretKey alice) msg
               isValid = S.verify (publicKey bob) msg signature
           in isValid `shouldBe` False
+
+  describe "Unsafe.Sign" $ do
+
+    describe "conversions" $ do
+
+      encodingRoundtrips "Seed" asSeed fromSeed
+      encodingRoundtrips "Keypair" asKeypair fromKeypair
+      encodingRoundtrips "PublicKey" asPublicKey fromPublicKey
+      encodingRoundtrips "SecretKey" asSecretKey fromSecretKey
 
   describe "byte sizes" $
 

@@ -2,6 +2,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeApplications #-}
 module HashTest (hashSpec) where
 
@@ -27,6 +29,9 @@ import TestUtils
 
 instance (Between MinKeyBytes MaxKeyBytes l) => Arbitrary (U.Key l) where
   arbitrary = U.Key <$> arbitrary
+
+instance Arbitrary Digest32 where
+  arbitrary = U.genericHash Nothing <$> arbitrary @ByteString
 
 type Digest32 = U.Digest 32
 type Key32 = U.Key 32
@@ -80,19 +85,33 @@ hashSpec = parallel $ do
               directDigest = S.hash (BS.concat chunks)
           in S.fromDigest streamDigest `shouldBe` (S.fromDigest directDigest :: ByteString)
 
+    describe "streamingLongHash" $
+
+      prop "is equivalent to hashing the data directly" $
+        \chunks ->
+          let streamDigest = S.streamingLongHash Nothing chunks
+              directDigest = S.longHash (BS.concat chunks)
+          in S.fromLongDigest streamDigest `shouldBe` (S.fromLongDigest directDigest :: ByteString)
+
+  describe "Unsafe.Hash" $ do
+
+    describe "conversions" $ do
+
+      encodingRoundtrips "Digest" U.asDigest (U.fromDigest @32)
+
   describe "byte sizes" $
 
     it "has matching type-level and value-level sizes" $ do
-      theNat @DigestBytes `shouldBe` digestSize
-      theNat @LongDigestBytes `shouldBe` longDigestSize
-      theNat @KeyBytes `shouldBe` keySize
-      theNat @LongKeyBytes `shouldBe` longKeySize
+      valueOf digestBytes `shouldBe` digestSize
+      valueOf longDigestBytes `shouldBe` longDigestSize
+      valueOf keyBytes `shouldBe` keySize
+      valueOf longKeyBytes `shouldBe` longKeySize
 
-      theNat @MinDigestBytes `shouldBe` minDigestSize
-      theNat @MaxDigestBytes `shouldBe` maxDigestSize
-      theNat @MinKeyBytes `shouldBe` minKeySize
-      theNat @MaxKeyBytes `shouldBe` maxKeySize
-      theNat @StateBytes `shouldBe` stateSize
+      valueOf minDigestBytes `shouldBe` minDigestSize
+      valueOf maxDigestBytes `shouldBe` maxDigestSize
+      valueOf minKeyBytes `shouldBe` minKeySize
+      valueOf maxKeyBytes `shouldBe` maxKeySize
+      valueOf stateBytes `shouldBe` stateSize
 
 
 from16 :: ByteString -> Bytes

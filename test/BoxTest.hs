@@ -22,6 +22,12 @@ import TestUtils
 instance Arbitrary Keypair where
   arbitrary = U.seedKeypair <$> arbitrary
 
+instance Arbitrary PublicKey where
+  arbitrary = publicKey <$> arbitrary
+
+instance Arbitrary SecretKey where
+  arbitrary = secretKey <$> arbitrary
+
 instance Arbitrary Nonce where
   arbitrary = U.Nonce <$> arbitrary
 
@@ -187,6 +193,14 @@ boxSpec = parallel $ do
               (ct2, mac2) = U.detachedBox (publicKey bob) (secretKey alice) nonce msg2
               xoredCiphertexts = B.xor (ct1 :: ByteString) (ct2 :: ByteString)
           in xoredCiphertexts `shouldBe` (B.xor msg1 msg2 :: ByteString)
+
+    describe "conversions" $ do
+
+      encodingRoundtrips "Seed" asSeed fromSeed
+      encodingRoundtrips "Nonce" asNonce fromNonce
+      encodingRoundtrips "Keypair" asKeypair fromKeypair
+      encodingRoundtrips "PublicKey" asPublicKey fromPublicKey
+      encodingRoundtrips "SecretKey" asSecretKey fromSecretKey
 
   describe "byte sizes" $
 

@@ -261,83 +261,6 @@ passwordOpen pw p = do
 
 
 
-
-
-
-
-
-{--
-data ProtectedN (length :: Nat) typeOf =
-  ProtectedN { getCiphertextN :: BytesN length
-             , getTagN :: Tag
-             , getPolicyN :: Policy
-             } deriving (Eq, Show)
-
-data Protected typeof =
-  Protected { getCiphertext :: Bytes
-            , getTag :: Tag
-            , getPolicy :: Policy
-            } deriving (Eq, Show)
-
-newtype Tag = Tag (BytesN TagBytes) deriving (Eq, Show, NFData)
-
-instance PhantomFunctor Protected where
-  pfmap _ (Protected p m l) = Protected p m l
-
-instance PhantomFunctor (ProtectedN l) where
-  pfmap _ (ProtectedN p m l) = ProtectedN p m l
-
-
-class PasswordProtectableN t l | t -> l where
-  protectWithN :: Policy -> Password -> t -> IO (ProtectedN l t)
-  openWithN :: Password -> ProtectedN l t -> Maybe t
-
-instance (ByteArray b, KnownNat l) => PasswordProtectableN (N l b) l where
-  protectWithN policy password secret = do
-    protected <- passwordProtectN policy password $ concealN secret
-    return $ pfmap revealN protected
-  openWithN password protected = do
-    result <- passwordOpenN password $ pfmap concealN protected
-    return $ revealN result
-
-instance PasswordProtectableN t l => PasswordProtectableN (Secret t) l where
-  protectWithN policy password secret = do
-    protected <- protectWithN policy password $ reveal secret
-    return $ pfmap conceal protected
-  openWithN password protected = do
-    result <- openWithN password $ pfmap reveal protected
-    return $ conceal result
-
-class PasswordProtectable s where
-  protectWith :: Policy -> Password -> s -> IO (Protected s)
-  default protectWith :: Plaintext s => Policy -> Password -> s -> IO (Protected s)
-  protectWith policy password plaintext = do
-    protected <- passwordProtect policy password
-      (fromPlaintext plaintext :: ScrubbedBytes)
-    return $ pfmap (fromJust . toPlaintext) protected
-
-  openWith :: Password -> Protected s -> Maybe s
-  default openWith :: Plaintext s => Password -> Protected s -> Maybe s
-  openWith password protected = do
-    let plain = pfmap fromPlaintext protected
-    opened <- passwordOpen password plain
-    toPlaintext (opened :: ScrubbedBytes)
-
-instance PasswordProtectable s => PasswordProtectable (Secret s) where
-  protectWith policy password (Conceal secret) = do
-    protected <- protectWith policy password secret
-    return $ pfmap Conceal protected
-  openWith password protected = do
-    let plain = pfmap reveal protected
-    opened <- openWith password plain
-    return $ Conceal opened
-
-instance PasswordProtectable Bytes
-instance PasswordProtectable ScrubbedBytes
-instance PasswordProtectable ByteString
---}
-
-
 {-|
 Wrapper type for the operations used by password hashing
 -}
@@ -348,8 +271,6 @@ Smart constructor for opslimit
 -}
 opslimit :: Int -> Maybe Opslimit
 opslimit x
-  -- Opslimit x < minOpslimit = error $ show x <> " below minimum opslimit " <> show minOpslimit
-  -- Opslimit x > maxOpslimit = error $ show x <> " above maximum opslimit " <> show maxOpslimit
   | Opslimit x < minOpslimit = Nothing
   | Opslimit x > maxOpslimit = Nothing
   | otherwise = Just (Opslimit x)
@@ -374,8 +295,6 @@ Smart constructor for memlimit
 -}
 memlimit :: Int -> Maybe Memlimit
 memlimit x
-  -- Memlimit x < minMemlimit = error $ show x <> " below minimum memlimit " <> show minMemlimit
-  -- Memlimit x > maxMemlimit = error $ show x <> " above maximum memlimit " <> show maxMemlimit
   | Memlimit x < minMemlimit = Nothing
   | Memlimit x > maxMemlimit = Nothing
   | otherwise = Just (Memlimit x)
@@ -463,58 +382,6 @@ sensitivePolicy = Policy opslimitSensitive
                          memlimitSensitive
                          defaultAlgorithm
 
-
-{--
-
-
-passwordProtect :: ByteArray b => Policy -> Password -> b -> IO (Protected b)
-passwordProtect policy password plaintext =
-  withLithium $ do
-  salt <- newSalt
-  nonce <- newNonce
-  let key = derive password salt policy
-  let (ciphertext, mac) =
-        secretBoxDetached key nonce plaintext
-  let tag = appendN (unSalt salt)
-            $ appendN (unNonce nonce)
-            $ unMac mac
-  return $ Protected ciphertext (Tag tag) policy
-
-passwordOpen :: ByteArray b => Password -> Protected b -> Maybe b
-passwordOpen password (Protected ciphertext (Tag tag) policy) =
-  withLithium $ do
-  let (saltB, nonceB, macB) =
-        splitN3 tag
-  let key = derive password (Salt saltB) policy
-  openSecretBoxDetached
-    key (Nonce nonceB) (Mac macB) ciphertext
-
-passwordProtectN :: forall l. (KnownNat l)
-                 => Policy -> Password -> SecretN l -> IO (ProtectedN l (SecretN l))
-passwordProtectN policy password secret =
-  withLithium $ do
-  salt <- newSalt
-  nonce <- newNonce
-  let key =
-        derive password salt policy
-  let (ciphertext, mac) =
-        secretBoxDetachedN key nonce secret
-  let tag = appendN (unSalt salt)
-            $ appendN (unNonce nonce)
-            $ unMac mac
-  return $ ProtectedN ciphertext (Tag tag) policy
-
-passwordOpenN :: forall l. (KnownNat l)
-              => Password -> ProtectedN l (SecretN l) -> Maybe (SecretN l)
-passwordOpenN password (ProtectedN ciphertext (Tag tag) policy) =
-  withLithium $ do
-  let (saltB, nonceB, macB) =
-        splitN3 tag
-  let key =
-        derive password (Salt saltB) policy
-  openSecretBoxDetachedN
-    key (Nonce nonceB) (Mac macB) ciphertext
---}
 
 type SaltBytes = 16
 saltBytes :: ByteSize SaltBytes
