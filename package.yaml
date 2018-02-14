@@ -53,12 +53,14 @@ library:
     - Crypto.Lithium.Unsafe.Box
     - Crypto.Lithium.Unsafe.Derive
     - Crypto.Lithium.Unsafe.Hash
+    - Crypto.Lithium.Unsafe.KeyExchange
     - Crypto.Lithium.Unsafe.OnetimeAuth
     - Crypto.Lithium.Unsafe.Password
     - Crypto.Lithium.Unsafe.SecretBox
     - Crypto.Lithium.Unsafe.SecretStream
     - Crypto.Lithium.Unsafe.ShortHash
     - Crypto.Lithium.Unsafe.Sign
+    - Crypto.Lithium.Unsafe.Stream
     - Crypto.Lithium.Unsafe.Types
   other-modules:
     - Crypto.Lithium.Internal.Aead
@@ -67,12 +69,14 @@ library:
     - Crypto.Lithium.Internal.Derive
     - Crypto.Lithium.Internal.Hash
     - Crypto.Lithium.Internal.Init
+    - Crypto.Lithium.Internal.KeyExchange
     - Crypto.Lithium.Internal.OnetimeAuth
     - Crypto.Lithium.Internal.Password
     - Crypto.Lithium.Internal.Random
     - Crypto.Lithium.Internal.SecretBox
     - Crypto.Lithium.Internal.SecretStream
     - Crypto.Lithium.Internal.Sign
+    - Crypto.Lithium.Internal.Stream
     - Crypto.Lithium.Internal.Util
     - Crypto.Lithium.Util.Init
     - Crypto.Lithium.Util.Phantom
